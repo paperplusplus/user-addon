@@ -144,7 +144,7 @@ export default class Inventory {
         let name = u.name;
         let loc = await this.ip2location(u.ip);
 
-        console.log( 'UTC', this.utm.convertLatLngToUtm(loc.lat, loc.lng).ZoneNumber );
+        console.log( 'UTC', this.utm.convertLatLngToUtm(loc.lat, loc.lng) );
 
         let greetText = '';
     }
