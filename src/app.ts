@@ -117,11 +117,13 @@ export default class Inventory {
     }
 
     private parseUser(user: MRE.User){
+        let ra = user.properties['remoteAddress'];
+        let ipv4 = ra.split(':').pop();
         return {
             id: user.id,
             name: user.name,
             device: user.properties['device-model'],
-            ip: user.properties['remoteAddress']
+            ip: ipv4
         }
     }
 
