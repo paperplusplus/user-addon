@@ -158,15 +158,13 @@ export default class Inventory {
         let greet = "Good " + (hour<12 && "Morning" || hour<18 && "Afternoon" || "Evening");
 
         this.tts(`${greet}, ${name}`);
-        let sound = this.assets.createSound('debu', { uri: `${this.baseUrl}/7b4b47dca6749ea49565f55e9cbab64f2f7d0b493cb94a7f53adbca3ce6816bc.ogg` });
-        this.playSound(sound);
     }
 
     private bye(user: MRE.User){
     }
 
     private async tts(text: string){
-        let fileName = sha256(text) + '.ogg';
+        let fileName = sha256(text) + '.wav';
         let filePath = path.join(__dirname, '../public/', fileName);
         console.log(text);
         let o = await text2wav(text);
