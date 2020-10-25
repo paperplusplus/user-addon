@@ -10,7 +10,6 @@ const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').diges
 
 const geotz = require('geo-tz');
 const moment = require('moment-timezone');
-const wavFileWriter= require('wav').FileWriter;
 
 import fetchJSON from './fetchJSON';
 import server from './server';
