@@ -58,9 +58,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+var fs_1 = __importDefault(require("fs"));
+var util_1 = __importDefault(require("util"));
+var crypto_1 = __importDefault(require("crypto"));
 var MRE = __importStar(require("@microsoft/mixed-reality-extension-sdk"));
+var geotz = require('geo-tz');
+var moment = require('moment-timezone');
+var textToSpeech = require('@google-cloud/text-to-speech');
+var sha256 = function (x) { return crypto_1.default.createHash('sha256').update(x, 'utf8').digest('hex'); };
 var fetchJSON_1 = __importDefault(require("./fetchJSON"));
-var latlng = require('utm-latlng');
 var API_KEY = process.env['API_KEY'];
 // CONFIGARABLES.
 var JOINED_SOUND_DURATION = 4860;
@@ -75,10 +81,11 @@ var Inventory = /** @class */ (function () {
         var _this = this;
         this._context = _context;
         this.params = params;
+        //tts
+        this.ttsClient = new textToSpeech.TextToSpeechClient();
         this.context = _context;
         this.baseUrl = _baseUrl;
         this.assets = new MRE.AssetContainer(this.context);
-        this.utm = new latlng();
         this.joinedSound = this.assets.createSound('joined', { uri: this.baseUrl + "/joined.ogg" });
         this.leftSound = this.assets.createSound('left', { uri: this.baseUrl + "/left.ogg" });
         this.box = MRE.Actor.Create(this.context, {
@@ -103,6 +110,9 @@ var Inventory = /** @class */ (function () {
         this.context.onStarted(function () { return _this.init(); });
         this.context.onUserJoined(function (user) { return _this.userJoined(user); });
         this.context.onUserLeft(function (user) { return _this.userLeft(user); });
+        var tz = 'Asia/Shanghai';
+        var mmt = moment.tz(tz).format();
+        console.log(mmt);
     }
     /**
      * Once the context is "started", initialize the app.
@@ -131,11 +141,13 @@ var Inventory = /** @class */ (function () {
         });
     };
     Inventory.prototype.parseUser = function (user) {
+        var ra = user.properties['remoteAddress'];
+        var ipv4 = ra.split(':').pop();
         return {
             id: user.id,
             name: user.name,
             device: user.properties['device-model'],
-            ip: user.properties['remoteAddress']
+            ip: ipv4
         };
     };
     Inventory.prototype.ip2location = function (ip) {
@@ -160,7 +172,7 @@ var Inventory = /** @class */ (function () {
     };
     Inventory.prototype.greet = function (user) {
         return __awaiter(this, void 0, void 0, function () {
-            var u, name, loc, greetText;
+            var u, name, loc, tz_1, mmt, tz, hour, greet;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -169,14 +181,49 @@ var Inventory = /** @class */ (function () {
                         return [4 /*yield*/, this.ip2location(u.ip)];
                     case 1:
                         loc = _a.sent();
-                        console.log('UTC', this.utm.convertLatLngToUtm(loc.lat, loc.lng).ZoneNumber);
-                        greetText = '';
+                        if (isNaN(loc.lat) && isNaN(loc.lng)) {
+                            tz_1 = geotz(loc.lat, loc.lng);
+                            tz_1 = 'Asia/Shanghai';
+                            mmt = moment.tz(tz_1);
+                        }
+                        tz = 'Asia/Shanghai';
+                        hour = moment.tz(tz).hour();
+                        greet = "Good " + (hour < 12 && "Morning" || hour < 18 && "Afternoon" || "Evening");
+                        this.tts(greet + ", " + name);
                         return [2 /*return*/];
                 }
             });
         });
     };
     Inventory.prototype.bye = function (user) {
+    };
+    Inventory.prototype.tts = function (text) {
+        return __awaiter(this, void 0, void 0, function () {
+            var request, response, fileName, writeFile, sound;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        request = {
+                            input: { text: text },
+                            // Select the language and SSML voice gender (optional)
+                            voice: { languageCode: 'en-US', ssmlGender: 'NEUTRAL' },
+                            // select the type of audio encoding
+                            audioConfig: { audioEncoding: 'MP3' },
+                        };
+                        return [4 /*yield*/, this.ttsClient.synthesizeSpeech(request)];
+                    case 1:
+                        response = (_a.sent())[0];
+                        fileName = sha256(text) + '.mp3';
+                        writeFile = util_1.default.promisify(fs_1.default.writeFile);
+                        return [4 /*yield*/, writeFile(fileName, response.audioContent, 'binary')];
+                    case 2:
+                        _a.sent();
+                        sound = this.assets.createSound(fileName, { uri: this.baseUrl + "/" + fileName });
+                        this.playSound(sound);
+                        return [2 /*return*/];
+                }
+            });
+        });
     };
     return Inventory;
 }());

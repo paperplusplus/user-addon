@@ -1,9 +1,16 @@
+import fs from 'fs';
+import util from 'util';
+import crypto from 'crypto';
+
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
-import textToSpeech from '@google-cloud/text-to-speech';
+
+const geotz = require('geo-tz');
+const moment = require('moment-timezone');
+const textToSpeech = require('@google-cloud/text-to-speech');
+const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').digest('hex');
 
 import fetchJSON from './fetchJSON';
 import server from './server';
-const latlng = require('utm-latlng');
 
 const API_KEY = process.env['API_KEY'];
 
@@ -42,20 +49,19 @@ export default class Inventory {
     private baseUrl: string;
     private assets: MRE.AssetContainer;
 
-    private utm;
-
     private joinedSound: MRE.Sound;
     private leftSound: MRE.Sound;
 
     private box: MRE.Actor;
+
+    //tts
+    private ttsClient = new textToSpeech.TextToSpeechClient();
 
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
         this.context = _context;
         this.baseUrl = _baseUrl;
         this.assets = new MRE.AssetContainer(this.context);
-
-        this.utm = new latlng();
 
         this.joinedSound = this.assets.createSound('joined', { uri: `${this.baseUrl}/joined.ogg` });
         this.leftSound = this.assets.createSound('left', { uri: `${this.baseUrl}/left.ogg` });
@@ -85,6 +91,9 @@ export default class Inventory {
         this.context.onUserJoined(user => this.userJoined(user));
         this.context.onUserLeft(user => this.userLeft(user));
 
+        let tz = 'Asia/Shanghai';
+        let mmt = moment.tz(tz).format();
+        console.log(mmt);
 	}
 
 	/**
@@ -130,7 +139,7 @@ export default class Inventory {
     private async ip2location(ip: string){
         console.log(`http://api.ipapi.com/${ip}?access_key=${API_KEY}`);
         const res = await fetchJSON(`http://api.ipapi.com/${ip}?access_key=${API_KEY}`);
-        return { 
+        return {
             lat: res.latitude,
             lng: res.longitude,
             cc: res.country_code,
@@ -144,11 +153,34 @@ export default class Inventory {
         let name = u.name;
         let loc = await this.ip2location(u.ip);
 
-        console.log( 'UTC', this.utm.convertLatLngToUtm(loc.lat, loc.lng, 4) );
+        if (isNaN(loc.lat) && isNaN(loc.lng)){
+            let tz = geotz(loc.lat, loc.lng);
+            tz = 'Asia/Shanghai';
+            let mmt = moment.tz(tz);
+        }
+        let tz = 'Asia/Shanghai';
+        let hour = moment.tz(tz).hour();
+        let greet = "Good " + (hour<12 && "Morning" || hour<18 && "Afternoon" || "Evening");
 
-        let greetText = '';
+        this.tts(`${greet}, ${name}`);
     }
 
     private bye(user: MRE.User){
+    }
+
+    private async tts(text: string){
+        const request = {
+            input: {text: text},
+            // Select the language and SSML voice gender (optional)
+            voice: {languageCode: 'en-US', ssmlGender: 'NEUTRAL'},
+            // select the type of audio encoding
+            audioConfig: {audioEncoding: 'MP3'},
+          };
+        const [response] = await this.ttsClient.synthesizeSpeech(request);
+        const fileName = sha256(text) + '.mp3';
+        const writeFile = util.promisify(fs.writeFile);
+        await writeFile(fileName, response.audioContent, 'binary');
+        const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
+        this.playSound(sound);
     }
 }
