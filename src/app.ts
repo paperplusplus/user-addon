@@ -10,6 +10,7 @@ const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').diges
 
 const geotz = require('geo-tz');
 const moment = require('moment-timezone');
+const wavFileWriter= require('wav').FileWriter;
 
 import fetchJSON from './fetchJSON';
 import server from './server';
@@ -168,8 +169,10 @@ export default class Inventory {
         let filePath = path.join(__dirname, '../public/', fileName);
         console.log(text);
         let o = await text2wav(text);
-        // const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
-        // this.playSound(sound);
-        console.log(o);
+        fs.appendFile(filePath, Buffer.from(o), (err) => {
+            if(err){ console.log(err);}
+            const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
+            this.playSound(sound);
+        });
     }
 }
