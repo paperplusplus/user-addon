@@ -157,7 +157,7 @@ export default class Inventory {
         let hour = moment.tz(tz).hour();
         let greet = "Good " + (hour<12 && "Morning" || hour<18 && "Afternoon" || "Evening");
 
-        this.tts(`${greet}, ${name}`);
+        this.tts(`${greet}, ${name}, welcome to the spaceship`);
     }
 
     private bye(user: MRE.User){
