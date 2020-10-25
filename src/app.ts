@@ -1,13 +1,15 @@
 import fs from 'fs';
 import util from 'util';
 import crypto from 'crypto';
+import path from 'path';
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
-import say from 'say';
+
+const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').digest('hex');
 
 const geotz = require('geo-tz');
 const moment = require('moment-timezone');
-const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').digest('hex');
+const gtts = require('node-gtts')('en');
 
 import fetchJSON from './fetchJSON';
 import server from './server';
@@ -166,11 +168,10 @@ export default class Inventory {
     }
 
     private async tts(text: string){
-        const fileName = sha256(text) + '.mp3';
-        say.export(text, 'Cellos', 0.75, fileName, (err)=>{
-            if (err) {
-                return console.error(err)
-            }
+        let fileName = sha256(text) + '.mp3';
+        console.log(__dirname);
+        return;
+        gtts.save(text, ()=>{
             const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
             this.playSound(sound);
         });
