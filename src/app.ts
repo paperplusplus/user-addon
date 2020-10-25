@@ -148,12 +148,12 @@ export default class Inventory {
         let name = u.name;
         let loc = await this.ip2location(u.ip);
 
+	let tz;
         if (isNaN(loc.lat) && isNaN(loc.lng)){
-            let tz = geotz(loc.lat, loc.lng);
             tz = 'Asia/Shanghai';
-            let mmt = moment.tz(tz);
-        }
-        let tz = 'Asia/Shanghai';
+        } else{
+            tz = geotz(loc.lat, loc.lng)[0];
+	}
         let hour = moment.tz(tz).hour();
         let greet = "Good " + (hour<12 && "Morning" || hour<18 && "Afternoon" || "Evening");
 
