@@ -3,10 +3,10 @@ import util from 'util';
 import crypto from 'crypto';
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
+import say from 'say';
 
 const geotz = require('geo-tz');
 const moment = require('moment-timezone');
-const textToSpeech = require('@google-cloud/text-to-speech');
 const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').digest('hex');
 
 import fetchJSON from './fetchJSON';
@@ -53,9 +53,6 @@ export default class Inventory {
     private leftSound: MRE.Sound;
 
     private box: MRE.Actor;
-
-    //tts
-    private ttsClient = new textToSpeech.TextToSpeechClient();
 
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
@@ -169,18 +166,13 @@ export default class Inventory {
     }
 
     private async tts(text: string){
-        const request = {
-            input: {text: text},
-            // Select the language and SSML voice gender (optional)
-            voice: {languageCode: 'en-US', ssmlGender: 'NEUTRAL'},
-            // select the type of audio encoding
-            audioConfig: {audioEncoding: 'MP3'},
-          };
-        const [response] = await this.ttsClient.synthesizeSpeech(request);
         const fileName = sha256(text) + '.mp3';
-        const writeFile = util.promisify(fs.writeFile);
-        await writeFile(fileName, response.audioContent, 'binary');
-        const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
-        this.playSound(sound);
+        say.export(text, 'Cellos', 0.75, fileName, (err)=>{
+            if (err) {
+                return console.error(err)
+            }
+            const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
+            this.playSound(sound);
+        });
     }
 }
