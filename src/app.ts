@@ -161,6 +161,10 @@ export default class Inventory {
     }
 
     private bye(user: MRE.User){
+        let u = this.parseUser(user);
+
+        let name = u.name;
+        this.tts(`${name} has left the spaceship`);
     }
 
     private async tts(text: string){
