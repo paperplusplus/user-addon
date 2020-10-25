@@ -164,10 +164,10 @@ export default class Inventory {
     }
 
     private async tts(text: string){
-        let fileName = sha256(text) + '.mp3';
+        let fileName = sha256(text) + '.ogg';
         let filePath = path.join(__dirname, '../public/', fileName);
         console.log(text);
-        let o = await text2wav(text);
+        let o = text2wav(text);
         fs.appendFile(filePath, Buffer.from(o), (err) => {
             if(err){ console.log(err);}
             const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
