@@ -169,9 +169,9 @@ export default class Inventory {
 
     private async tts(text: string){
         let fileName = sha256(text) + '.mp3';
-        console.log(__dirname);
-        return;
-        gtts.save(text, ()=>{
+        let filePath = path.join(__dirname, '../public/', fileName);
+        console.log(text);
+        gtts.save(filePath, text, ()=>{
             const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
             this.playSound(sound);
         });
