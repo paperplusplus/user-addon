@@ -144,9 +144,11 @@ export default class Inventory {
 
     private async greet(user: MRE.User){
         let u = this.parseUser(user);
+	console.log(u);
 
         let name = u.name;
         let loc = await this.ip2location(u.ip);
+	console.log(loc);
 
 	let tz;
         if (isNaN(loc.lat) && isNaN(loc.lng)){
@@ -171,7 +173,13 @@ export default class Inventory {
         let fileName = sha256(text) + '.wav';
         let filePath = path.join(__dirname, '../public/', fileName);
         console.log(text);
-        let o = await text2wav(text);
+	let o;
+	try{
+            o = await text2wav(text);
+	}catch(err){
+            console.log(err);
+	    return;
+	}
         fs.appendFile(filePath, Buffer.from(o), (err) => {
             if(err){ console.log(err);}
             const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
