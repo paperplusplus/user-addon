@@ -20,6 +20,6 @@
     "@microsoft/mixed-reality-extension-sdk": "^0.20.0",
     "geo-tz": "^6.0.0",
     "moment-timezone": "^0.5.31",
-    "node-gtts": "^2.0.2"
+    "text2wav": "0.0.13"
   }
 }

@@ -4,12 +4,12 @@ import crypto from 'crypto';
 import path from 'path';
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
+import text2wav = require('text2wav');
 
 const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').digest('hex');
 
 const geotz = require('geo-tz');
 const moment = require('moment-timezone');
-const gtts = require('node-gtts')('en');
 
 import fetchJSON from './fetchJSON';
 import server from './server';
@@ -89,10 +89,6 @@ export default class Inventory {
         this.context.onStarted(() => this.init());
         this.context.onUserJoined(user => this.userJoined(user));
         this.context.onUserLeft(user => this.userLeft(user));
-
-        let tz = 'Asia/Shanghai';
-        let mmt = moment.tz(tz).format();
-        console.log(mmt);
 	}
 
 	/**
@@ -171,9 +167,9 @@ export default class Inventory {
         let fileName = sha256(text) + '.mp3';
         let filePath = path.join(__dirname, '../public/', fileName);
         console.log(text);
-        gtts.save(filePath, text, ()=>{
-            const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
-            this.playSound(sound);
-        });
+        let o = await text2wav(text);
+        // const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
+        // this.playSound(sound);
+        console.log(o);
     }
 }
