@@ -1,5 +1,4 @@
 import fs from 'fs';
-import util from 'util';
 import crypto from 'crypto';
 import path from 'path';
 
@@ -13,6 +12,7 @@ const moment = require('moment-timezone');
 
 import fetchJSON from './fetchJSON';
 import {GridMenu, Button} from './GUI';
+import { CollisionLayer } from '@microsoft/mixed-reality-extension-sdk';
 
 const API_KEY = process.env['API_KEY'];
 
@@ -85,27 +85,23 @@ export default class Inventory {
     }
 
     private createBox(){
-        this.box = new Button();
-        this.box = MRE.Actor.Create(this.context, {
-            actor: {
-                    transform: {
-                        local: {
-                            position: {x: 0, y: 0, z: 0},
-                            scale: {x: 1, y: 1, z: 1}
-                        }
-                    },
-                    appearance: {
-                        enabled: true,
-                        meshId: this.assets.createBoxMesh('box_mesh', 0.1, 0.1, 0.1).id,
-                        materialId: this.assets.createMaterial('box_material', { color: MRE.Color3.LightGray() }).id
-                    },
-                    collider: { 
-                        geometry: { shape: MRE.ColliderType.Auto },
-                        layer: MRE.CollisionLayer.Hologram
-                    }
+        this.box = new Button(this.context, {
+            position: {x: 0, y: 0, z: 0},
+            scale: {x: 1, y: 1, z: 1},
+            text: '',
+            enabled: false,
+            meshId: this.assets.createBoxMesh('box_mesh', 0.1, 0.1, 0.1).id,
+            materialId: this.assets.createMaterial('box_material', { color: MRE.Color3.LightGray() }).id,
+            buttonDepth: 0.1,
+            layer: MRE.CollisionLayer.Hologram
+        });
+        this.box.addBehavior((user,__) => {
+            user.prompt("Text To Speech", true).then((dialog) => {
+                if (dialog.submitted) {
+                    this.tts(dialog.text);
                 }
-            }
-        );
+            });
+        });
     }
 
     private userJoined(user: MRE.User){
@@ -123,7 +119,7 @@ export default class Inventory {
     }
 
     private playSound(musicAsset: MRE.Sound){
-        this.box.startSound(musicAsset.id, {
+        this.box._button.startSound(musicAsset.id, {
             volume: 0.5,
             looping: false,
             rolloffStartDistance: 2.5

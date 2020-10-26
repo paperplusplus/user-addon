@@ -4,11 +4,13 @@ import { MreArgumentError } from '@microsoft/mixed-reality-extension-sdk';
 export interface ButtonOptions {
     name?: string,
     position?: Partial<MRE.Vector3Like>,
+    rotation?: MRE.Vector3Like,
     scale?: MRE.Vector3Like,
     text?: string,
     color?:MRE.Color3,
-    rotation?: MRE.Vector3Like,
-    parentId: MRE.Guid,
+    enabled?: boolean,
+    layer?: MRE.CollisionLayer,
+    parentId?: MRE.Guid,
     meshId: MRE.Guid,
     materialId: MRE.Guid,
     buttonDepth: number
@@ -117,6 +119,7 @@ export abstract class GridMenu {
 export class Button {
     private _text: string;
     private _color: MRE.Color3;
+    private enabled: boolean;
 
     private _box: MRE.Actor;
     private _label: MRE.Actor;
@@ -135,6 +138,9 @@ export class Button {
     constructor(context: MRE.Context, options?: ButtonOptions){
         let position = (options.position !== undefined) ? options.position : { x: 0, y: 0, z: 0 };
         let scale = (options.scale !== undefined) ? options.scale : { x: 1, y: 1, z: 1 };
+        let enabled = (options.enabled !== undefined) ? options.enabled : true;
+        let layer = (options.layer !== undefined) ? options.layer : MRE.CollisionLayer.Default;
+
         this._text = (options.text !== undefined) ? options.text : '?';
         this._color = (options.color !== undefined) ? options.color : MRE.Color3.Black();
 
@@ -146,7 +152,8 @@ export class Button {
             actor: {
                 appearance: {
                     meshId,
-                    materialId
+                    materialId,
+                    enabled
                 },
                 transform: {
                     local: {
@@ -154,7 +161,10 @@ export class Button {
                         scale
                     }
                 },
-                collider: { geometry: { shape: MRE.ColliderType.Auto } }
+                collider: { 
+                    geometry: { shape: MRE.ColliderType.Auto },
+                    layer
+                }
             }
         });
 
@@ -188,9 +198,5 @@ export class Button {
 
     public updateColor(_color: MRE.Color3){
         this._button.appearance.material.color = new MRE.Color4(_color.r, _color.g, _color.b, 1);
-    }
-
-    public onClickEventHandler(name: string, row: number, col: number){
-
     }
 }
