@@ -21,6 +21,10 @@ const JOINED_SOUND_DURATION = 4860;
 const LEFT_SOUND_DURATION = 3200;
 const DELAY_BETWEEN_SOUNDS = 100;
 
+const BOX_WIDTH=0.3;
+const BOX_HEIGHT=0.3;
+const BOX_DEPTH=0.3;
+
 type weaponDescriptor = {
     resourceId: string;
     attachPoint: string;
@@ -89,8 +93,8 @@ export default class Inventory {
             position: {x: 0, y: 0, z: 0},
             scale: {x: 1, y: 1, z: 1},
             text: '',
-            enabled: false,
-            meshId: this.assets.createBoxMesh('box_mesh', 0.1, 0.1, 0.1).id,
+            enabled: true,
+            meshId: this.assets.createBoxMesh('box_mesh', BOX_WIDTH, BOX_HEIGHT, BOX_DEPTH).id,
             materialId: this.assets.createMaterial('box_material', { color: MRE.Color3.LightGray() }).id,
             buttonDepth: 0.1,
             layer: MRE.CollisionLayer.Hologram
