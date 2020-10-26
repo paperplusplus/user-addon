@@ -13,6 +13,7 @@ const moment = require('moment-timezone');
 
 import fetchJSON from './fetchJSON';
 import server from './server';
+import {GridMenu} from './GUI';
 
 const API_KEY = process.env['API_KEY'];
 
@@ -41,6 +42,9 @@ type weaponDescriptor = {
     };
 };
 
+class InventoryMenu extends GridMenu{
+}
+
 /**
  * The main class of this app. All the logic goes here.
  */
@@ -55,6 +59,9 @@ export default class Inventory {
     private leftSound: MRE.Sound;
 
     private box: MRE.Actor;
+
+    // logic
+    private menu: InventoryMenu;
 
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
@@ -173,13 +180,13 @@ export default class Inventory {
         let fileName = sha256(text) + '.wav';
         let filePath = path.join(__dirname, '../public/', fileName);
         console.log(text);
-	let o;
-	try{
+        let o;
+        try{
             o = await text2wav(text);
-	}catch(err){
+        }catch(err){
             console.log(err);
-	    return;
-	}
+            return;
+        }
         fs.appendFile(filePath, Buffer.from(o), (err) => {
             if(err){ console.log(err);}
             const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
