@@ -1,9 +1,10 @@
 import fs from 'fs';
+import util from 'util';
 import crypto from 'crypto';
 import path from 'path';
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
-import text2wav = require('text2wav');
+const text2wav = require('text2wav');
 
 const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').digest('hex');
 
@@ -44,6 +45,11 @@ type weaponDescriptor = {
         z: number;
     };
 };
+
+interface playSoundOptions{
+    rolloffStartDistance?: number;
+    volume?: number;
+}
 
 class InventoryMenu extends GridMenu{
 }
@@ -109,24 +115,26 @@ export default class Inventory {
     }
 
     private userJoined(user: MRE.User){
-        this.playSound(this.joinedSound);
+        this.playSound(this.joinedSound, {});
         setTimeout(() => {
             this.greet(user);
         }, JOINED_SOUND_DURATION + DELAY_BETWEEN_SOUNDS);
     }
 
     private userLeft(user: MRE.User){
-        this.playSound(this.leftSound);
+        this.playSound(this.leftSound, {});
         setTimeout(() => {
             this.bye(user);
         }, LEFT_SOUND_DURATION + DELAY_BETWEEN_SOUNDS);
     }
 
-    private playSound(musicAsset: MRE.Sound){
+    private playSound(musicAsset: MRE.Sound, options?: playSoundOptions){
+        let volume = (options.volume == undefined) ? 0.7 : options.volume;
+        let rolloffStartDistance = (options.rolloffStartDistance == undefined) ? 15 : options.rolloffStartDistance;
         this.box._button.startSound(musicAsset.id, {
-            volume: 0.5,
-            looping: false,
-            rolloffStartDistance: 2.5
+            volume,
+            rolloffStartDistance,
+            looping: false
         });
     }
 
@@ -161,13 +169,13 @@ export default class Inventory {
         console.log(loc);
 
         let tz;
-        if (isNaN(loc.lat) && isNaN(loc.lng)){
+        if (isNaN(loc.lat) && isNaN(loc.lng) || loc.lat==null && loc.lng==null){
             tz = 'Asia/Shanghai';
         } else{
             tz = geotz(loc.lat, loc.lng)[0];
         }
         let hour = moment.tz(tz).hour();
-        let greet = "Good " + (hour<12 && hour>4 && "Morning" || hour<18 && "Afternoon" || "Evening");
+        let greet = "Good " + (hour>=4 && hour<12 && "Morning" || hour>=12 && hour<18 && "Afternoon" || "Evening");
 
         this.tts(`${greet}, ${name}, welcome to the spaceship`);
     }
@@ -193,7 +201,7 @@ export default class Inventory {
         fs.appendFile(filePath, Buffer.from(o), (err) => {
             if(err){ console.log(err);}
             const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
-            this.playSound(sound);
+            this.playSound(sound, {});
         });
     }
 }
