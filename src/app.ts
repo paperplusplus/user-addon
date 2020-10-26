@@ -12,7 +12,6 @@ const geotz = require('geo-tz');
 const moment = require('moment-timezone');
 
 import fetchJSON from './fetchJSON';
-import server from './server';
 import {GridMenu} from './GUI';
 
 const API_KEY = process.env['API_KEY'];
@@ -151,20 +150,20 @@ export default class Inventory {
 
     private async greet(user: MRE.User){
         let u = this.parseUser(user);
-	console.log(u);
+        console.log(u);
 
         let name = u.name;
         let loc = await this.ip2location(u.ip);
-	console.log(loc);
+        console.log(loc);
 
-	let tz;
+        let tz;
         if (isNaN(loc.lat) && isNaN(loc.lng)){
             tz = 'Asia/Shanghai';
         } else{
             tz = geotz(loc.lat, loc.lng)[0];
-	}
+        }
         let hour = moment.tz(tz).hour();
-        let greet = "Good " + (hour<12 && "Morning" || hour<18 && "Afternoon" || "Evening");
+        let greet = "Good " + (hour<12 && hour>4 && "Morning" || hour<18 && "Afternoon" || "Evening");
 
         this.tts(`${greet}, ${name}, welcome to the spaceship`);
     }
