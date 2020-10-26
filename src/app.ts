@@ -12,7 +12,7 @@ const geotz = require('geo-tz');
 const moment = require('moment-timezone');
 
 import fetchJSON from './fetchJSON';
-import {GridMenu} from './GUI';
+import {GridMenu, Button} from './GUI';
 
 const API_KEY = process.env['API_KEY'];
 
@@ -57,10 +57,10 @@ export default class Inventory {
     private joinedSound: MRE.Sound;
     private leftSound: MRE.Sound;
 
-    private box: MRE.Actor;
 
     // logic
     private menu: InventoryMenu;
+    private box: Button;
 
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
@@ -71,26 +71,6 @@ export default class Inventory {
         this.joinedSound = this.assets.createSound('joined', { uri: `${this.baseUrl}/joined.ogg` });
         this.leftSound = this.assets.createSound('left', { uri: `${this.baseUrl}/left.ogg` });
 
-        this.box = MRE.Actor.Create(this.context, {
-            actor: {
-                    transform: {
-                        local: {
-                            position: {x: 0, y: 0, z: 0},
-                            scale: {x: 1, y: 1, z: 1}
-                        }
-                    },
-                    appearance: {
-                        enabled: false,
-                        meshId: this.assets.createBoxMesh('box_mesh', 0.1, 0.1, 0.1).id,
-                        materialId: this.assets.createMaterial('box_material', { color: MRE.Color3.LightGray() }).id
-                    },
-                    collider: { 
-                        geometry: { shape: MRE.ColliderType.Auto },
-                        layer: MRE.CollisionLayer.Hologram
-                    }
-                }
-            }
-        );
 
         this.context.onStarted(() => this.init());
         this.context.onUserJoined(user => this.userJoined(user));
@@ -101,7 +81,31 @@ export default class Inventory {
 	 * Once the context is "started", initialize the app.
 	 */
 	private init() {
+        this.createBox();
+    }
 
+    private createBox(){
+        this.box = new Button();
+        this.box = MRE.Actor.Create(this.context, {
+            actor: {
+                    transform: {
+                        local: {
+                            position: {x: 0, y: 0, z: 0},
+                            scale: {x: 1, y: 1, z: 1}
+                        }
+                    },
+                    appearance: {
+                        enabled: true,
+                        meshId: this.assets.createBoxMesh('box_mesh', 0.1, 0.1, 0.1).id,
+                        materialId: this.assets.createMaterial('box_material', { color: MRE.Color3.LightGray() }).id
+                    },
+                    collider: { 
+                        geometry: { shape: MRE.ColliderType.Auto },
+                        layer: MRE.CollisionLayer.Hologram
+                    }
+                }
+            }
+        );
     }
 
     private userJoined(user: MRE.User){
