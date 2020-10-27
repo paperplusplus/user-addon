@@ -1,10 +1,10 @@
 node_modules/
-built/
+build/
 *.tsbuildinfo
 .eslintcache
 .env
 *.log
-.package-lock
 .deployment
 *.blend1
 .DS_Store
+public/*.wav

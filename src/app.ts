@@ -92,6 +92,7 @@ export default class Inventory {
 	 */
 	private init() {
         this.createBox();
+        this.addGrab();
     }
 
     private createBox(){
@@ -112,6 +113,12 @@ export default class Inventory {
                 }
             });
         });
+    }
+
+    private addGrab(){
+        let button = this.box._button;
+        button.grabbable = true;
+        button.onGrab('begin', (user, data)=>{console.log(user); console.log(data);});
     }
 
     private userJoined(user: MRE.User){
@@ -198,7 +205,7 @@ export default class Inventory {
             console.log(err);
             return;
         }
-        fs.appendFile(filePath, Buffer.from(o), (err) => {
+        fs.writeFile(filePath, Buffer.from(o), (err) => {
             if(err){ console.log(err);}
             const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
             this.playSound(sound, {});
