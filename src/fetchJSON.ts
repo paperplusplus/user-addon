@@ -1,6 +1,6 @@
-import { get, ClientRequest } from 'http';
+import { get } from 'http';
 
-export default function fetchJSON(url: string): Promise<any> {
+export function fetchJSON(url: string): Promise<any> {
 	return new Promise((resolve, reject) => {
 		get(url, res => {
 			const { statusCode } = res;
