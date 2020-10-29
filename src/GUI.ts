@@ -11,108 +11,124 @@ export interface ButtonOptions {
     enabled?: boolean,
     layer?: MRE.CollisionLayer,
     parentId?: MRE.Guid,
+    planeMeshId?: MRE.Guid,
     meshId: MRE.Guid,
     materialId: MRE.Guid,
+    defaultPlaneMaterialId: MRE.Guid, // debug
     buttonDepth: number
 }
 
 export interface GridLayoutOptions {
-    shape: {
+    shape?: {
         row: number,
         col: number
     },
-    margin: number,
-    cell: {
-        width: number,
-        height: number,
-        depth: number,
-        scale?: number
-    },
-    data: CellData[][]
+    margin?: number,
+    cell?: CellDimensions,
+    data?: CellData[][],
+    planeMeshId?: MRE.Guid,
+    meshId: MRE.Guid,
+    defaultMaterialId: MRE.Guid,
+    defaultPlaneMaterialId: MRE.Guid // debug
+}
+
+export interface CellDimensions{
+    width: number,
+    height: number,
+    depth: number,
+    scale?: number
 }
 
 export interface CellData{
-    text: string,
-    materialId: MRE.Guid
+    text?: string,
+    materialId?: MRE.Guid
 }
 
-export abstract class GridMenu {
+export class GridMenu {
     // unity
     private context: MRE.Context;
-    private menu: MRE.Actor;
+    private _menu: MRE.Actor;
     private assets: MRE.AssetContainer;
 
     private meshId: MRE.Guid;
-    private defaultBtnMaterialId: MRE.Guid;
+    private planeMeshId: MRE.Guid;
+    private defaultMaterialId: MRE.Guid;
 
-    // consts
-    private CELL_WIDTH: number;
-    private CELL_HEIGHT: number;
-    private CELL_DEPTH: number;
-    private CELL_SCALE: number;
+    // debug
+    private defaultPlaneMaterialId: MRE.Guid;
 
-    private CELL_MARGIN: number;
+    private cell: CellDimensions;
+    private data: CellData[][];
+    private margin: number;
 
     // logic
     private buttons = new Map<string, Button>();
 
     constructor(_context: MRE.Context, options?: GridLayoutOptions){
         this.context = _context;
-
-        // parent actor
-        this.menu = MRE.Actor.Create(this.context, {});
-
-        this.CELL_WIDTH = (options.cell.width == undefined) ? 0.1 : options.cell.width;
-        this.CELL_HEIGHT = (options.cell.height == undefined) ? 0.1 : options.cell.height;
-        this.CELL_DEPTH = (options.cell.depth == undefined) ? 0.1 : options.cell.depth;
-        this.CELL_SCALE = (options.cell.scale == undefined) ? 1 : options.cell.scale;
-        this.CELL_MARGIN = (options.margin == undefined) ? 0.01 : options.margin;
+        new MRE.AssetContainer(this.context);
 
         let row = (options.shape.row == undefined) ? 1 : options.shape.row;
         let col = (options.shape.col == undefined) ? 1 : options.shape.col;
+        this.cell = (options.cell == undefined) ? this.defaultCellDimensions() : options.cell;
+        this.margin =(options.margin == undefined) ? 0.1 : options.margin;
 
-        let data = (options.data == undefined) ? this.defaultGridLayoutData(row, col) : options.data;
+        this.defaultMaterialId = options.defaultMaterialId;
+        this.meshId = options.meshId;
+        this.planeMeshId = options.planeMeshId;
+        this.defaultPlaneMaterialId = options.defaultPlaneMaterialId; // debug
 
-        this.meshId = this.assets.createBoxMesh('btn_mesh', this.CELL_WIDTH, this.CELL_HEIGHT, this.CELL_DEPTH).id;
-        this.defaultBtnMaterialId = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.LightGray() }).id;
-
-        this.createGrid(row, col, data);
+        // default data depends on defaultMaterialId
+        this.data = (options.data == undefined) ? this.defaultGridLayoutData(row, col) : options.data;
+        this.createGrid(row, col);
     }
 
-    private createGrid(row: number, col: number, data: CellData[][]){
-        let w = this.CELL_WIDTH;
-        let h = this.CELL_HEIGHT;
-
+    private createGrid(row: number, col: number){
+        this._menu = MRE.Actor.Create(this.context, {});
         for (let ri=0; ri<row; ri++){
             for (let ci=0; ci<col; ci++){
                 let name = "btn_"+ri+"_"+ci;
-                let d = data[ri][ci];
+                let d = this.data[ri][ci];
                 let btn = new Button(this.context, 
                     {
                         name,
+                        layer: MRE.CollisionLayer.Hologram,
                         position: { 
-                            x: ci * (this.CELL_WIDTH + this.CELL_MARGIN) + w/2,
-                            y: (row - ri - 1) * (this.CELL_HEIGHT + this.CELL_MARGIN) + h/2,
+                            x: ci * (this.cell.width + this.margin) + this.cell.width/2,
+                            y: (row - ri - 1) * (this.cell.height + this.margin) + this.cell.height/2,
                             z: 0
                         },
-                        scale: { x: this.CELL_SCALE, y: this.CELL_SCALE, z: this.CELL_SCALE },
-                        buttonDepth: this.CELL_DEPTH,
-                        parentId: this.menu.id,
+                        scale: { x: this.cell.scale, y: this.cell.scale, z: this.cell.scale },
+                        buttonDepth: this.cell.depth,
+                        parentId: this._menu.id,
                         meshId: this.meshId,
                         text: d.text,
-                        materialId: d.materialId
+                        materialId: d.materialId,
+                        planeMeshId: this.planeMeshId,
+                        defaultPlaneMaterialId: this.defaultPlaneMaterialId
                     }
                 );
                 this.buttons.set(name, btn);
+                btn.addBehavior((__,_) => {});
             }
         };
     }
 
     private defaultGridLayoutData(row: number, col: number){
+        let materialId = this.defaultMaterialId;
         return [...Array(row)].map((x,r) => [...Array(col)].map((y,c) => ({
             text: '',
-            materialId: this.defaultBtnMaterialId
+            materialId
         })));
+    }
+
+    private defaultCellDimensions(){
+        return {
+            width: 1,
+            height: 1,
+            depth: 1,
+            scale: 1
+        }
     }
 }
 
@@ -147,6 +163,10 @@ export class Button {
         let meshId = options.meshId;
         let materialId = options.materialId;
         let buttonDepth = options.buttonDepth;
+        let planeMeshId = options.planeMeshId;
+
+        // debug
+        let planeMaterialId = options.defaultPlaneMaterialId;
 
         this._box = MRE.Actor.Create(context, {
             actor: {
@@ -172,7 +192,7 @@ export class Button {
 			actor: {
 				name: 'Text',
 				transform: {
-					app: { position: {x: position.x, y: position.y, z: position.z - buttonDepth/2 - 0.0001} }
+					app: { position: {x: position.x, y: position.y, z: position.z - buttonDepth - 0.0001} }
 				},
 				text: {
 					contents: this._text,
@@ -182,6 +202,25 @@ export class Button {
 				}
 			}
         });
+
+        if (planeMeshId != undefined){
+            this._picture = MRE.Actor.Create(context, {
+                actor: {
+                    appearance: {
+                        meshId: planeMeshId,
+                        materialId: planeMaterialId,
+                        enabled
+                    },
+                    transform: {
+                        local: {
+                            scale,
+                            position: {x: position.x, y: position.y, z: position.z - buttonDepth/2 - 0.0001},
+                            rotation: MRE.Quaternion.FromEulerAngles(-90 * MRE.DegreesToRadians, 0 * MRE.DegreesToRadians, 0 * MRE.DegreesToRadians),
+                        }
+                    }
+                }
+            });
+        }
         
         this.buttonBehavior = this._button.setBehavior(MRE.ButtonBehavior);
     }

@@ -1,5 +1,4 @@
 import fs from 'fs';
-import util from 'util';
 import crypto from 'crypto';
 import path from 'path';
 
@@ -11,22 +10,34 @@ const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').diges
 const geotz = require('geo-tz');
 const moment = require('moment-timezone');
 
-import fetchJSON from './fetchJSON';
+import {fetchJSON} from './fetchJSON';
 import {GridMenu, Button} from './GUI';
-import { CollisionLayer } from '@microsoft/mixed-reality-extension-sdk';
 
 const API_KEY = process.env['API_KEY'];
+const OWNER_NAME = process.env['OWNER_NAME'];
 
 // CONFIGARABLES.
 const JOINED_SOUND_DURATION = 4860;
 const LEFT_SOUND_DURATION = 3200;
 const DELAY_BETWEEN_SOUNDS = 100;
 
-const BOX_WIDTH=0.3;
-const BOX_HEIGHT=0.3;
-const BOX_DEPTH=0.3;
+const BOX_WIDTH=0.1;
+const BOX_HEIGHT=0.1;
+const BOX_DEPTH=0.1;
 
-type weaponDescriptor = {
+const CELL_WIDTH = 0.1;
+const CELL_HEIGHT = 0.1;
+const CELL_DEPTH = 0.005;
+const CELL_MARGIN = 0.005;
+const CELL_SCALE = 1;
+
+interface playSoundOptions{
+    rolloffStartDistance?: number;
+    volume?: number;
+}
+
+type ItemDescriptor = {
+    thumbnailId: string;
     resourceId: string;
     attachPoint: string;
     scale: {
@@ -46,14 +57,6 @@ type weaponDescriptor = {
     };
 };
 
-interface playSoundOptions{
-    rolloffStartDistance?: number;
-    volume?: number;
-}
-
-class InventoryMenu extends GridMenu{
-}
-
 /**
  * The main class of this app. All the logic goes here.
  */
@@ -64,13 +67,25 @@ export default class Inventory {
     private baseUrl: string;
     private assets: MRE.AssetContainer;
 
+    private meshId: MRE.Guid;
+    private planeMeshId: MRE.Guid;
+    private defaultMaterialId: MRE.Guid;
+
+
     private joinedSound: MRE.Sound;
     private leftSound: MRE.Sound;
 
+    //debug
+    private defaultPlaneMaterialId: MRE.Guid;
+    private texture: MRE.Texture;
+
 
     // logic
-    private menu: InventoryMenu;
+    private menu: GridMenu;
     private box: Button;
+
+    // data
+    private ItemDatabase: { [key: string]: ItemDescriptor } = {};
 
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
@@ -78,9 +93,15 @@ export default class Inventory {
         this.baseUrl = _baseUrl;
         this.assets = new MRE.AssetContainer(this.context);
 
+        this.texture = this.assets.createTexture('pete', {uri: `${this.baseUrl}/pete.jpg`});
+
+        this.meshId = this.assets.createBoxMesh('btn_mesh', CELL_WIDTH, CELL_HEIGHT, CELL_DEPTH).id;
+        this.defaultMaterialId = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        this.defaultPlaneMaterialId = this.assets.createMaterial('default_plane_material', { emissiveTextureId: this.texture.id, mainTextureId: this.texture.id }).id;
+        this.planeMeshId = this.assets.createPlaneMesh('plane_mesh', CELL_WIDTH, CELL_HEIGHT).id;
+
         this.joinedSound = this.assets.createSound('joined', { uri: `${this.baseUrl}/joined.ogg` });
         this.leftSound = this.assets.createSound('left', { uri: `${this.baseUrl}/left.ogg` });
-
 
         this.context.onStarted(() => this.init());
         this.context.onUserJoined(user => this.userJoined(user));
@@ -91,8 +112,29 @@ export default class Inventory {
 	 * Once the context is "started", initialize the app.
 	 */
 	private init() {
+        this.createMenu();
         this.createBox();
-        this.addGrab();
+    }
+
+    private createMenu(){
+        this.menu = new GridMenu(this.context, {
+            shape: {
+                row: 4,
+                col: 3
+            },
+            cell: {
+                width: CELL_WIDTH,
+                height: CELL_HEIGHT,
+                depth: CELL_DEPTH,
+                scale: CELL_SCALE
+            },
+            margin: CELL_MARGIN,
+            meshId: this.meshId,
+            planeMeshId: this.planeMeshId,
+            defaultMaterialId: this.defaultMaterialId,
+            // debug
+            defaultPlaneMaterialId: this.defaultPlaneMaterialId
+        });
     }
 
     private createBox(){
@@ -104,7 +146,8 @@ export default class Inventory {
             meshId: this.assets.createBoxMesh('box_mesh', BOX_WIDTH, BOX_HEIGHT, BOX_DEPTH).id,
             materialId: this.assets.createMaterial('box_material', { color: MRE.Color3.LightGray() }).id,
             buttonDepth: 0.1,
-            layer: MRE.CollisionLayer.Hologram
+            layer: MRE.CollisionLayer.Hologram,
+            defaultPlaneMaterialId: this.defaultPlaneMaterialId // debug
         });
         this.box.addBehavior((user,__) => {
             user.prompt("Text To Speech", true).then((dialog) => {
@@ -113,12 +156,16 @@ export default class Inventory {
                 }
             });
         });
-    }
-
-    private addGrab(){
+        
+        // Add grab
         let button = this.box._button;
         button.grabbable = true;
-        button.onGrab('begin', (user, data)=>{console.log(user); console.log(data);});
+        button.onGrab('end', (user)=>{
+            console.log('ended');
+            if (this.checkUserName(user, OWNER_NAME)) {
+                this.equip(user);
+            }
+        });
     }
 
     private userJoined(user: MRE.User){
@@ -210,5 +257,14 @@ export default class Inventory {
             const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
             this.playSound(sound, {});
         });
+    }
+
+    private checkUserName(user: MRE.User, name: string){
+        console.log(user.name, name);
+        return user.name == name;
+    }
+
+    private equip(user: MRE.User){
+        this.box._button.attach(user, 'left-hand');
     }
 }
