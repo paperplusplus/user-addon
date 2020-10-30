@@ -68,8 +68,12 @@ export default class Inventory {
     private assets: MRE.AssetContainer;
 
     private meshId: MRE.Guid;
-    private planeMeshId: MRE.Guid;
     private defaultMaterialId: MRE.Guid;
+
+    private highlightMeshId: MRE.Guid;
+    private highlightMaterialId: MRE.Guid;
+
+    private planeMeshId: MRE.Guid;
 
 
     private joinedSound: MRE.Sound;
@@ -95,8 +99,15 @@ export default class Inventory {
 
         this.texture = this.assets.createTexture('pete', {uri: `${this.baseUrl}/pete.jpg`});
 
+        // button
         this.meshId = this.assets.createBoxMesh('btn_mesh', CELL_WIDTH, CELL_HEIGHT, CELL_DEPTH).id;
         this.defaultMaterialId = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.LightGray() }).id;
+
+        // highlight
+        this.highlightMeshId = this.assets.createBoxMesh('highlight_mesh', CELL_WIDTH+CELL_MARGIN, CELL_HEIGHT+CELL_MARGIN, CELL_DEPTH).id;
+        this.highlightMaterialId = this.assets.createMaterial('highlight_btn_material', { color: MRE.Color3.Red() }).id;
+
+        // plane
         this.defaultPlaneMaterialId = this.assets.createMaterial('default_plane_material', { emissiveTextureId: this.texture.id, mainTextureId: this.texture.id }).id;
         this.planeMeshId = this.assets.createPlaneMesh('plane_mesh', CELL_WIDTH, CELL_HEIGHT).id;
 
@@ -112,8 +123,8 @@ export default class Inventory {
 	 * Once the context is "started", initialize the app.
 	 */
 	private init() {
-        this.createMenu();
         this.createBox();
+        this.createMenu();
     }
 
     private createMenu(){
@@ -130,8 +141,10 @@ export default class Inventory {
             },
             margin: CELL_MARGIN,
             meshId: this.meshId,
-            planeMeshId: this.planeMeshId,
             defaultMaterialId: this.defaultMaterialId,
+            highlightMeshId: this.highlightMeshId,
+            highlightMaterialId: this.highlightMaterialId,
+            planeMeshId: this.planeMeshId,
             // debug
             defaultPlaneMaterialId: this.defaultPlaneMaterialId
         });
