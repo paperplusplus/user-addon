@@ -18,27 +18,31 @@ export interface ButtonOptions {
     buttonDepth: number
 }
 
-export interface GridLayoutOptions {
+export interface GridMenuOptions {
+    offset?:{
+        x: number,
+        y: number
+    }
     shape?: {
         row: number,
         col: number
     },
+    cell?: {
+        width: number,
+        height: number,
+        depth: number,
+        scale?: number,
+        highlightDepth?: number
+    },
     margin?: number,
-    cell?: CellDimensions,
     data?: CellData[][],
     meshId: MRE.Guid,
     defaultMaterialId: MRE.Guid,
     highlightMeshId: MRE.Guid,
     highlightMaterialId: MRE.Guid,
     planeMeshId?: MRE.Guid,
+    parentId?: MRE.Guid,
     defaultPlaneMaterialId: MRE.Guid // debug
-}
-
-export interface CellDimensions{
-    width: number,
-    height: number,
-    depth: number,
-    scale?: number
 }
 
 export interface CellData{
@@ -46,7 +50,7 @@ export interface CellData{
     materialId?: MRE.Guid
 }
 
-export class GridMenu {
+export abstract class GridMenu {
     // unity
     private context: MRE.Context;
     private _menu: MRE.Actor;
@@ -59,12 +63,15 @@ export class GridMenu {
     private highlightMaterialId: MRE.Guid;
     private planeMeshId: MRE.Guid;
 
+    private parentId: MRE.Guid;
+
     // debug
     private defaultPlaneMaterialId: MRE.Guid;
 
     private row: number;
     private col: number;
-    private cell: CellDimensions;
+    private cell: GridMenuOptions['cell'];
+    private offset: GridMenuOptions['offset'];
     private data: CellData[][];
     private margin: number;
 
@@ -74,12 +81,19 @@ export class GridMenu {
     private highlightedButtonCoord: Vector2;
     private isHighlighted: boolean = false;
 
-    constructor(_context: MRE.Context, options?: GridLayoutOptions){
+    // interface
+    abstract onItemClick(coord: Vector2, name: string): void;
+
+    // get 
+    get root() {return this._menu};
+
+    constructor(_context: MRE.Context, options?: GridMenuOptions){
         this.context = _context;
         // this.assets = new MRE.AssetContainer(this.context);
 
         this.row = (options.shape.row == undefined) ? 1 : options.shape.row;
         this.col = (options.shape.col == undefined) ? 1 : options.shape.col;
+        this.offset = (options.offset == undefined) ? {x: 0, y: 0}: options.offset;
         this.cell = (options.cell == undefined) ? this.defaultCellDimensions() : options.cell;
         this.margin =(options.margin == undefined) ? 0.1 : options.margin;
 
@@ -91,8 +105,22 @@ export class GridMenu {
         this.planeMeshId = options.planeMeshId;
         this.defaultPlaneMaterialId = options.defaultPlaneMaterialId; // debug
 
+        this.parentId = (options.parentId == undefined) ? null : options.parentId;
+
         // default data depends on defaultMaterialId
         this.data = (options.data == undefined) ? this.defaultGridLayoutData(this.row, this.col) : options.data;
+
+        // parent
+        this._menu = MRE.Actor.Create(this.context, {
+            actor:{ 
+                transform: { 
+                    local: { position: { x: this.offset.x, y: this.offset.y } }
+                },
+                parentId: this.parentId
+            }
+        });
+
+        // cells
         this.createGrid(this.row, this.col);
         this.createHighlightButton();
     }
@@ -109,8 +137,8 @@ export class GridMenu {
                     z: 0
                 },
                 scale: { x: this.cell.scale, y: this.cell.scale, z: this.cell.scale },
-                enabled: true,
-                buttonDepth: this.cell.depth,
+                enabled: false,
+                buttonDepth: this.cell.highlightDepth,
                 parentId: this._menu.id,
                 meshId: this.highlightMeshId,
                 text: '',
@@ -121,7 +149,6 @@ export class GridMenu {
     }
 
     private createGrid(row: number, col: number){
-        this._menu = MRE.Actor.Create(this.context, {});
         for (let ri=0; ri<row; ri++){
             for (let ci=0; ci<col; ci++){
                 let name = "btn_"+ri+"_"+ci;
@@ -147,7 +174,7 @@ export class GridMenu {
                 );
                 this.buttons.set(name, btn);
                 btn.addBehavior((__,_) => {
-                    this.onClick(new Vector2(ri, ci));
+                    this.onClick(new Vector2(ri, ci), name);
                 });
             }
         };
@@ -177,9 +204,9 @@ export class GridMenu {
         }
     }
 
-    private onClick(coord: Vector2){
+    private onClick(coord: Vector2, name: string){
         // click on highlight or not
-        if (this.isHighlighted && coord == this.highlightedButtonCoord){
+        if (this.isHighlighted && coord.equals(this.highlightedButtonCoord)){
             this.highlightButton.disable();
             this.isHighlighted = false;
         }
@@ -190,7 +217,7 @@ export class GridMenu {
         // update highlight
         this.highlightedButtonCoord = coord;
         this.moveHighlightTo(this.highlightedButtonCoord);
-        console.log(this.highlightedButtonCoord);
+        this.onItemClick(coord, name);
     }
     
     private moveHighlightTo(coord: Vector2){
@@ -214,6 +241,10 @@ export class Button {
         return this._box;
     }
 
+    get _plane(){
+        return this._picture;
+    }
+
     get text(){
         return this._text;
     }
@@ -223,6 +254,7 @@ export class Button {
         let scale = (options.scale !== undefined) ? options.scale : { x: 1, y: 1, z: 1 };
         let enabled = (options.enabled !== undefined) ? options.enabled : true;
         let layer = (options.layer !== undefined) ? options.layer : MRE.CollisionLayer.Default;
+        let parentId = (options.parentId !== undefined) ? options.parentId : null;
 
         this._text = (options.text !== undefined) ? options.text : '?';
         this._color = (options.color !== undefined) ? options.color : MRE.Color3.Black();
@@ -237,6 +269,7 @@ export class Button {
 
         this._box = MRE.Actor.Create(context, {
             actor: {
+                parentId,
                 appearance: {
                     meshId,
                     materialId,
@@ -257,7 +290,8 @@ export class Button {
 
         this._label = MRE.Actor.Create(context, {
 			actor: {
-				name: 'Text',
+                name: 'Text',
+                parentId,
 				transform: {
 					app: { position: {x: position.x, y: position.y, z: position.z - buttonDepth - 0.0001} }
 				},
@@ -273,6 +307,7 @@ export class Button {
         if (planeMeshId != undefined){
             this._picture = MRE.Actor.Create(context, {
                 actor: {
+                    parentId,
                     appearance: {
                         meshId: planeMeshId,
                         materialId: planeMaterialId,
