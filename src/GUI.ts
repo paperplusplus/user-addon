@@ -1,5 +1,6 @@
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
 import { MreArgumentError, Vector2 } from '@microsoft/mixed-reality-extension-sdk';
+import Inventory from './app';
 
 export interface ButtonOptions {
     name?: string,
@@ -7,6 +8,7 @@ export interface ButtonOptions {
     rotation?: MRE.Vector3Like,
     scale?: MRE.Vector3Like,
     text?: string,
+    textHeight?: number,
     color?:MRE.Color3,
     enabled?: boolean,
     layer?: MRE.CollisionLayer,
@@ -14,7 +16,7 @@ export interface ButtonOptions {
     planeMeshId?: MRE.Guid,
     meshId: MRE.Guid,
     materialId: MRE.Guid,
-    defaultPlaneMaterialId: MRE.Guid, // debug
+    defaultPlaneMaterialId?: MRE.Guid, // debug
     buttonDepth: number
 }
 
@@ -31,8 +33,9 @@ export interface GridMenuOptions {
         width: number,
         height: number,
         depth: number,
+        highlightDepth?: number,
         scale?: number,
-        highlightDepth?: number
+        textHeight?: number
     },
     margin?: number,
     data?: CellData[][],
@@ -42,7 +45,7 @@ export interface GridMenuOptions {
     highlightMaterialId: MRE.Guid,
     planeMeshId?: MRE.Guid,
     parentId?: MRE.Guid,
-    defaultPlaneMaterialId: MRE.Guid // debug
+    defaultPlaneMaterialId?: MRE.Guid // debug
 }
 
 export interface CellData{
@@ -51,8 +54,9 @@ export interface CellData{
 }
 
 export abstract class GridMenu {
+    protected app: Inventory;
     // unity
-    private context: MRE.Context;
+    protected context: MRE.Context;
     private _menu: MRE.Actor;
     private assets: MRE.AssetContainer;
 
@@ -82,13 +86,14 @@ export abstract class GridMenu {
     private isHighlighted: boolean = false;
 
     // interface
-    abstract onItemClick(coord: Vector2, name: string): void;
+    abstract onItemClick(coord: Vector2, name: string, user: MRE.User): void;
 
     // get 
     get root() {return this._menu};
 
-    constructor(_context: MRE.Context, options?: GridMenuOptions){
+    constructor(_context: MRE.Context, _app: Inventory, options?: GridMenuOptions){
         this.context = _context;
+        this.app = _app;
         // this.assets = new MRE.AssetContainer(this.context);
 
         this.row = (options.shape.row == undefined) ? 1 : options.shape.row;
@@ -167,14 +172,15 @@ export abstract class GridMenu {
                         parentId: this._menu.id,
                         meshId: this.meshId,
                         text: d.text,
+                        textHeight: this.cell.textHeight,
                         materialId: d.materialId,
                         planeMeshId: this.planeMeshId,
                         defaultPlaneMaterialId: this.defaultPlaneMaterialId
                     }
                 );
                 this.buttons.set(name, btn);
-                btn.addBehavior((__,_) => {
-                    this.onClick(new Vector2(ri, ci), name);
+                btn.addBehavior((user,_) => {
+                    this.onClick(new Vector2(ri, ci), name, user);
                 });
             }
         };
@@ -204,7 +210,11 @@ export abstract class GridMenu {
         }
     }
 
-    private onClick(coord: Vector2, name: string){
+    private onClick(coord: Vector2, name: string, user: MRE.User){
+        this.onItemClick(coord, name, user);
+    }
+
+    public highlight(coord: Vector2){
         // click on highlight or not
         if (this.isHighlighted && coord.equals(this.highlightedButtonCoord)){
             this.highlightButton.disable();
@@ -217,18 +227,28 @@ export abstract class GridMenu {
         // update highlight
         this.highlightedButtonCoord = coord;
         this.moveHighlightTo(this.highlightedButtonCoord);
-        this.onItemClick(coord, name);
     }
     
     private moveHighlightTo(coord: Vector2){
         this.highlightButton._button.transform.local.position.x = this.highlightedButtonCoord.y * (this.cell.width + this.margin) + this.cell.width/2;
         this.highlightButton._button.transform.local.position.y = (this.row - this.highlightedButtonCoord.x - 1) * (this.cell.height + this.margin) + this.cell.height/2;
     }
+
+    public disable(){
+        this._menu.appearance.enabled = false;
+        this._menu.transform.local.position.z = this.cell.depth*2;
+    }
+
+    public enable(){
+        this._menu.appearance.enabled = true;
+        this._menu.transform.local.position.z = 0;
+    }
 }
 
 export class Button {
     private _text: string;
     private _color: MRE.Color3;
+    private textHeight: number;
     private enabled: boolean;
 
     private _box: MRE.Actor;
@@ -258,6 +278,7 @@ export class Button {
 
         this._text = (options.text !== undefined) ? options.text : '?';
         this._color = (options.color !== undefined) ? options.color : MRE.Color3.Black();
+        this.textHeight = (options.textHeight !== undefined) ? options.textHeight : 0.05;
 
         let meshId = options.meshId;
         let materialId = options.materialId;
@@ -293,13 +314,13 @@ export class Button {
                 name: 'Text',
                 parentId,
 				transform: {
-					app: { position: {x: position.x, y: position.y, z: position.z - buttonDepth - 0.0001} }
+					local: { position: {x: position.x, y: position.y, z: position.z - buttonDepth - 0.0001} }
 				},
 				text: {
 					contents: this._text,
 					anchor: MRE.TextAnchorLocation.MiddleCenter,
                     color: this._color,
-					height: 0.05
+					height: this.textHeight
 				}
 			}
         });

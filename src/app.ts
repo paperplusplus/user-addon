@@ -9,7 +9,7 @@ const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').diges
 
 const geotz = require('geo-tz');
 const moment = require('moment-timezone');
-
+3
 import {fetchJSON} from './fetchJSON';
 import {GridMenu, Button} from './GUI';
 import { Vector2 } from '@microsoft/mixed-reality-extension-sdk';
@@ -24,17 +24,28 @@ const DELAY_BETWEEN_SOUNDS = 100;
 
 const RADIUS=0.1;
 
+// Main Menu
+const MAIN_MENU_ITEMS = ['Inventory', 'SoundBoard', 'TTS', 'Lock'];
+const MAIN_MENU_CELL_WIDTH = 0.3;
+const MAIN_MENU_CELL_HEIGHT = 0.1;
+const MAIN_MENU_CELL_DEPTH = 0.005;
+const MAIN_MENU_CELL_MARGIN = 0.01;
+const MAIN_MENU_CELL_SCALE = 1;
+
+// Inventory
 const CELL_WIDTH = 0.1;
 const CELL_HEIGHT = 0.1;
 const CELL_DEPTH = 0.005;
 const CELL_MARGIN = 0.005;
 const CELL_SCALE = 1;
 
+const INVENTORY_CONTROL_ITEMS = ['Next', 'Prev', 'Equip', 'Clear', 'Back'];
 const CONTROL_CELL_WIDTH = CELL_WIDTH*2/3;
 const CONTROL_CELL_HEIGHT = CELL_HEIGHT/2;
 const CONTROL_CELL_DEPTH = 0.005;
 const CONTROL_CELL_MARGIN = 0.005;
 const CONTROL_CELL_SCALE = 1;
+const CONTROL_CELL_TEXT_HEIGHT = 0.02;
 
 interface playSoundOptions{
     rolloffStartDistance?: number;
@@ -62,15 +73,57 @@ type ItemDescriptor = {
     };
 };
 
+class MainMenu extends GridMenu{
+    onItemClick(coord: Vector2, name: string, user: MRE.User){
+        if (this.app.scene != 'main_menu') return;
+
+        let row = coord.x;
+        switch(row){
+            case MAIN_MENU_ITEMS.indexOf('Inventory'):
+                this.app.switchScene('inventory_menu');
+                break;
+            case MAIN_MENU_ITEMS.indexOf('SoundBoard'):
+                break;
+            case MAIN_MENU_ITEMS.indexOf('TTS'):
+                user.prompt("Text To Speech", true).then((dialog) => {
+                    if (dialog.submitted) {
+                        this.app.tts(dialog.text);
+                    }
+                });
+                break;
+            case MAIN_MENU_ITEMS.indexOf('Lock'):
+                this.highlight(coord);
+                break;
+        }
+    }
+}
+
 class InventoryMenu extends GridMenu{
-    onItemClick(coord: Vector2, name: string){
-        console.log(name, 'at', coord.x, coord.y, 'clicked');
+    onItemClick(coord: Vector2, name: string, user: MRE.User){
+        if (this.app.scene != 'inventory_menu') return;
+        this.highlight(coord);
+        console.log(name);
     }
 }
 
 class ControlMenu extends GridMenu{
-    onItemClick(coord: Vector2, name: string){
-        console.log(name, 'at', coord.x, coord.y, 'clicked');
+    onItemClick(coord: Vector2, name: string, user: MRE.User){
+        if (this.app.scene != 'inventory_menu') return;
+
+        let row = coord.x;
+        switch(row){
+            case INVENTORY_CONTROL_ITEMS.indexOf('Next'):
+                break;
+            case INVENTORY_CONTROL_ITEMS.indexOf('Prev'):
+                break;
+            case INVENTORY_CONTROL_ITEMS.indexOf('Equip'):
+                break;
+            case INVENTORY_CONTROL_ITEMS.indexOf('Clear'):
+                break;
+            case INVENTORY_CONTROL_ITEMS.indexOf('Back'):
+                this.app.switchScene('main_menu');
+                break;
+        }
     }
 }
 
@@ -83,6 +136,11 @@ export default class Inventory {
     private context: MRE.Context;
     private baseUrl: string;
     private assets: MRE.AssetContainer;
+
+    private mainMenuMeshId: MRE.Guid;
+    private mainMenuDefaultMaterialId: MRE.Guid;
+    private mainMenuHighlightMeshId: MRE.Guid;
+    private mainMenuHighlightMaterialId: MRE.Guid;
 
     private meshId: MRE.Guid;
     private defaultMaterialId: MRE.Guid;
@@ -107,11 +165,19 @@ export default class Inventory {
 
     // logic
     private ball: Button;
-    private menu: InventoryMenu;
-    private controlStrip: ControlMenu;
+    private mainMenu: MainMenu;
+    private inventoryMenu: InventoryMenu;
+    private inventoryControlStrip: ControlMenu;
+
+    private scenes: Array<[string, GridMenu[]]> = [];
+    private currentScene: string = '#';
+    private prevScene: string = 'main_menu';
 
     // data
     private ItemDatabase: { [key: string]: ItemDescriptor } = {};
+
+    // get
+    get scene() { return this.currentScene; }
 
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
@@ -121,17 +187,23 @@ export default class Inventory {
 
         this.texture = this.assets.createTexture('pete', {uri: `${this.baseUrl}/pete.jpg`});
 
-        // button
+        // mainmenu button
+        this.mainMenuMeshId = this.assets.createBoxMesh('main_menu_btn_mesh', MAIN_MENU_CELL_WIDTH, MAIN_MENU_CELL_HEIGHT, MAIN_MENU_CELL_DEPTH).id;
+        this.mainMenuDefaultMaterialId = this.assets.createMaterial('main_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        this.mainMenuHighlightMeshId = this.assets.createBoxMesh('main_menu_highlight_mesh', MAIN_MENU_CELL_WIDTH+MAIN_MENU_CELL_MARGIN, MAIN_MENU_CELL_HEIGHT+MAIN_MENU_CELL_MARGIN, CELL_DEPTH/2).id;
+        this.mainMenuHighlightMaterialId = this.assets.createMaterial('main_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+
+        // inventory button
         this.meshId = this.assets.createBoxMesh('btn_mesh', CELL_WIDTH, CELL_HEIGHT, CELL_DEPTH).id;
         this.defaultMaterialId = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.LightGray() }).id;
         this.highlightMeshId = this.assets.createBoxMesh('highlight_mesh', CELL_WIDTH+CELL_MARGIN, CELL_HEIGHT+CELL_MARGIN, CELL_DEPTH/2).id;
         this.highlightMaterialId = this.assets.createMaterial('highlight_btn_material', { color: MRE.Color3.Red() }).id;
 
-        // plane
+        // inventory plane
         this.defaultPlaneMaterialId = this.assets.createMaterial('default_plane_material', { emissiveTextureId: this.texture.id, mainTextureId: this.texture.id }).id;
         this.planeMeshId = this.assets.createPlaneMesh('plane_mesh', CELL_WIDTH, CELL_HEIGHT).id;
 
-        // control
+        // inventory control
         this.controlMeshId = this.assets.createBoxMesh('control_btn_mesh', CONTROL_CELL_WIDTH, CONTROL_CELL_HEIGHT, CONTROL_CELL_DEPTH).id;
         this.controlDefaultMaterialId = this.assets.createMaterial('control_default_btn_material', { color: MRE.Color3.DarkGray() }).id;
         this.controlHighlightMeshId = this.assets.createBoxMesh('control_highlight_mesh', CONTROL_CELL_WIDTH+CONTROL_CELL_MARGIN, CONTROL_CELL_HEIGHT+CONTROL_CELL_MARGIN, CONTROL_CELL_DEPTH/2).id;
@@ -153,26 +225,93 @@ export default class Inventory {
 	 */
 	private init() {
         this.createBall();
-        this.createMenu();
-        this.createControlStrip();
+
+        // main menu
+        this.createMainMenu();
+
+        // inventory menu
+        this.createInventoryMenu();
+        this.createInventoryMenuControlStrip();
+
+        // TODOS: soundboard menu
+
+        // scenes
+        this.scenes.push(['main_menu', [this.mainMenu]]);
+        this.scenes.push(['inventory_menu', [this.inventoryMenu, this.inventoryControlStrip]]);
+
+        this.switchScene(''); // start from main menu
     }
 
-    private createControlStrip(){
-        let size = this.menu.getMenuSize();
-        this.controlStrip = new ControlMenu(this.context, {
+    public switchScene(scene: string){
+        if (this.currentScene == scene){
+            return;
+        }
+        // default scene
+        if (!this.scene.length && !this.scenes.map(e=>e[0]).includes(scene)) {
+            scene = 'main_menu';
+        }
+        this.currentScene = scene;
+        this.scenes.forEach((e)=>{
+            let k = e[0]; let v = e[1];
+            v.forEach(m => {
+                if (k == scene){
+                    m.enable();
+                }else{
+                    m.disable();
+                }
+            });
+        });
+    }
+
+    private createMainMenu(){
+        let data = MAIN_MENU_ITEMS.map(t => [{
+            text: t
+        }]);
+        this.mainMenu = new MainMenu(this.context, this, {
+            offset: {
+                x: RADIUS,
+                y: RADIUS
+            },
+            shape: {
+                row: 4,
+                col: 1
+            },
+            cell: {
+                width: MAIN_MENU_CELL_WIDTH,
+                height: MAIN_MENU_CELL_HEIGHT,
+                depth: MAIN_MENU_CELL_DEPTH,
+                scale: MAIN_MENU_CELL_SCALE
+            },
+            margin: MAIN_MENU_CELL_MARGIN,
+            meshId: this.mainMenuMeshId,
+            defaultMaterialId: this.mainMenuDefaultMaterialId,
+            highlightMeshId: this.mainMenuHighlightMeshId,
+            highlightMaterialId: this.mainMenuHighlightMaterialId,
+            parentId: this.ball._button.id,
+            data
+        });
+    }
+
+    private createInventoryMenuControlStrip(){
+        let data = INVENTORY_CONTROL_ITEMS.map(t => [{
+            text: t
+        }]);
+        let size = this.inventoryMenu.getMenuSize();
+        this.inventoryControlStrip = new ControlMenu(this.context, this, {
             offset: {
                 x: RADIUS + size.width + CONTROL_CELL_MARGIN,
                 y: RADIUS
             },
             shape: {
-                row: 2,
+                row: 5,
                 col: 1
             },
             cell: {
                 width: CONTROL_CELL_WIDTH,
                 height: CONTROL_CELL_HEIGHT,
                 depth: CONTROL_CELL_DEPTH,
-                scale: CONTROL_CELL_SCALE
+                scale: CONTROL_CELL_SCALE,
+                textHeight: CONTROL_CELL_TEXT_HEIGHT
             },
             margin: CELL_MARGIN,
             meshId: this.controlMeshId,
@@ -181,13 +320,12 @@ export default class Inventory {
             highlightMaterialId: this.controlHighlightMaterialId,
             planeMeshId: this.controlPlaneMeshId,
             parentId: this.ball._button.id,
-            // debug
-            defaultPlaneMaterialId: this.defaultPlaneMaterialId
+            data
         });
     }
 
-    private createMenu(){
-        this.menu = new InventoryMenu(this.context, {
+    private createInventoryMenu(){
+        this.inventoryMenu = new InventoryMenu(this.context, this, {
             offset:{
                 x: RADIUS,
                 y: RADIUS
@@ -228,22 +366,31 @@ export default class Inventory {
             defaultPlaneMaterialId: this.defaultPlaneMaterialId // debug
         });
         this.ball.addBehavior((user,__) => {
-            user.prompt("Text To Speech", true).then((dialog) => {
-                if (dialog.submitted) {
-                    this.tts(dialog.text);
-                }
-            });
+            // user.prompt("Text To Speech", true).then((dialog) => {
+            //     if (dialog.submitted) {
+            //         this.tts(dialog.text);
+            //     }
+            // });
+            this.toggleMenu();
         });
         
         // Add grab
         let button = this.ball._button;
         button.grabbable = true;
         button.onGrab('end', (user)=>{
-            console.log('ended');
             if (this.checkUserName(user, OWNER_NAME)) {
                 this.equipBall(user);
             }
         });
+    }
+
+    private toggleMenu(){
+        if (this.currentScene == ''){
+            this.switchScene(this.prevScene);
+        } else{
+            this.prevScene = this.currentScene;
+            this.switchScene('');
+        }
     }
 
     private userJoined(user: MRE.User){
@@ -319,7 +466,7 @@ export default class Inventory {
         this.tts(`${name} has left the spaceship`);
     }
 
-    private async tts(text: string){
+    public async tts(text: string){
         let fileName = sha256(text) + '.wav';
         let filePath = path.join(__dirname, '../public/', fileName);
         console.log(text);
@@ -338,7 +485,6 @@ export default class Inventory {
     }
 
     private checkUserName(user: MRE.User, name: string){
-        console.log(user.name, name);
         return user.name == name;
     }
 
