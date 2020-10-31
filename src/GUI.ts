@@ -2,6 +2,8 @@ import * as MRE from '@microsoft/mixed-reality-extension-sdk';
 import { MreArgumentError, Vector2 } from '@microsoft/mixed-reality-extension-sdk';
 import Inventory from './app';
 
+const OWNER_NAME = process.env['OWNER_NAME'];
+
 export interface ButtonOptions {
     name?: string,
     position?: Partial<MRE.Vector3Like>,
@@ -90,6 +92,7 @@ export abstract class GridMenu {
 
     // get 
     get root() {return this._menu};
+    get highlighted() {return this.isHighlighted};
 
     constructor(_context: MRE.Context, _app: Inventory, options?: GridMenuOptions){
         this.context = _context;
@@ -210,8 +213,14 @@ export abstract class GridMenu {
         }
     }
 
+    private checkUserName(user: MRE.User, name: string){
+        return user.name == name;
+    }
+
     private onClick(coord: Vector2, name: string, user: MRE.User){
-        this.onItemClick(coord, name, user);
+        if (this.checkUserName(user, OWNER_NAME)){
+            this.onItemClick(coord, name, user);
+        }
     }
 
     public highlight(coord: Vector2){
