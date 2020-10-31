@@ -4,7 +4,7 @@ import cheerio from 'cheerio';
 const email = process.env['EMAIL'];
 const password = process.env['PASSWORD'];
 
-export class Crawler{
+export class AltVRCrawler{
     constructor(){
     }
 
@@ -92,7 +92,7 @@ export class Crawler{
 }
 
 (async ()=>{
-    let crawler = new Crawler();
+    let crawler = new AltVRCrawler();
     crawler.get_kits([
         '1150502900485587047',
         '1150502900485587047?page=2',
