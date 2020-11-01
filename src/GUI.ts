@@ -1,5 +1,6 @@
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
 import { MreArgumentError, Vector2 } from '@microsoft/mixed-reality-extension-sdk';
+import { xml } from 'cheerio';
 import Inventory from './app';
 
 const OWNER_NAME = process.env['OWNER_NAME'];
@@ -19,9 +20,18 @@ export interface ButtonOptions {
     meshId: MRE.Guid,
     materialId: MRE.Guid,
     defaultPlaneMaterialId?: MRE.Guid, // debug
-    buttonDepth: number
+    buttonDimensions?: {
+        width: number,
+        height: number,
+        depth: number
+    },
+    planeDimensions?: {
+        width?: number,
+        height?: number
+    }
 }
 
+// plane must be defined if provided planeMeshId
 export interface GridMenuOptions {
     offset?:{
         x: number,
@@ -39,12 +49,18 @@ export interface GridMenuOptions {
         scale?: number,
         textHeight?: number
     },
+    plane?:{
+        width: number,
+        height: number
+    }
     margin?: number,
     data?: CellData[][],
+    title?: string,
+    titleTextHeight?: number,
     meshId: MRE.Guid,
     defaultMaterialId: MRE.Guid,
-    highlightMeshId: MRE.Guid,
-    highlightMaterialId: MRE.Guid,
+    highlightMeshId?: MRE.Guid,
+    highlightMaterialId?: MRE.Guid,
     planeMeshId?: MRE.Guid,
     parentId?: MRE.Guid,
     defaultPlaneMaterialId?: MRE.Guid // debug
@@ -60,6 +76,7 @@ export abstract class GridMenu {
     // unity
     protected context: MRE.Context;
     private _menu: MRE.Actor;
+    private _label: MRE.Actor;
     private assets: MRE.AssetContainer;
 
     private meshId: MRE.Guid;
@@ -77,8 +94,11 @@ export abstract class GridMenu {
     private row: number;
     private col: number;
     private cell: GridMenuOptions['cell'];
+    private plane: GridMenuOptions['plane'];
     private offset: GridMenuOptions['offset'];
     private data: CellData[][];
+    private title: string;
+    private titleTextHeight: number;
     private margin: number;
 
     // logic
@@ -103,7 +123,11 @@ export abstract class GridMenu {
         this.col = (options.shape.col == undefined) ? 1 : options.shape.col;
         this.offset = (options.offset == undefined) ? {x: 0, y: 0}: options.offset;
         this.cell = (options.cell == undefined) ? this.defaultCellDimensions() : options.cell;
+        this.plane = (options.plane == undefined) ? {width: this.cell.width, height: this.cell.height}: options.plane;
         this.margin =(options.margin == undefined) ? 0.1 : options.margin;
+
+        this.title = options.title;
+        this.titleTextHeight = (options.titleTextHeight == undefined) ? 0.05 : options.titleTextHeight;
 
         this.meshId = options.meshId;
         this.defaultMaterialId = options.defaultMaterialId;
@@ -131,29 +155,11 @@ export abstract class GridMenu {
         // cells
         this.createGrid(this.row, this.col);
         this.createHighlightButton();
-    }
 
-    private createHighlightButton(){
-        this.highlightedButtonCoord = new Vector2(0,0);
-        this.highlightButton= new Button(this.context, 
-            {
-                name: 'highlight',
-                layer: MRE.CollisionLayer.Hologram,
-                position: { 
-                    x: this.highlightedButtonCoord.y * (this.cell.width + this.margin) + this.cell.width/2,
-                    y: (this.row - this.highlightedButtonCoord.x - 1) * (this.cell.height + this.margin) + this.cell.height/2,
-                    z: 0
-                },
-                scale: { x: this.cell.scale, y: this.cell.scale, z: this.cell.scale },
-                enabled: false,
-                buttonDepth: this.cell.highlightDepth,
-                parentId: this._menu.id,
-                meshId: this.highlightMeshId,
-                text: '',
-                materialId: this.highlightMaterialId,
-                defaultPlaneMaterialId: this.defaultPlaneMaterialId
-            }
-        );
+        // title
+        if (this.title != undefined){
+            this.createTitle();
+        }
     }
 
     private createGrid(row: number, col: number){
@@ -171,7 +177,8 @@ export abstract class GridMenu {
                             z: 0
                         },
                         scale: { x: this.cell.scale, y: this.cell.scale, z: this.cell.scale },
-                        buttonDepth: this.cell.depth,
+                        buttonDimensions: { width: this.cell.width, height: this.cell.height, depth: this.cell.depth },
+                        planeDimensions: this.plane,
                         parentId: this._menu.id,
                         meshId: this.meshId,
                         text: d.text,
@@ -189,6 +196,54 @@ export abstract class GridMenu {
         };
     }
 
+    private createHighlightButton(){
+        this.highlightedButtonCoord = new Vector2(0,0);
+        this.highlightButton= new Button(this.context, 
+            {
+                name: 'highlight',
+                layer: MRE.CollisionLayer.Hologram,
+                position: { 
+                    x: this.highlightedButtonCoord.y * (this.cell.width + this.margin) + this.cell.width/2,
+                    y: (this.row - this.highlightedButtonCoord.x - 1) * (this.cell.height + this.margin) + this.cell.height/2,
+                    z: 0
+                },
+                scale: { x: this.cell.scale, y: this.cell.scale, z: this.cell.scale },
+                enabled: false,
+                buttonDimensions: { width: (this.cell.width + this.margin), height: (this.cell.height + this.margin), depth: this.cell.highlightDepth },
+                parentId: this._menu.id,
+                meshId: this.highlightMeshId,
+                text: '',
+                materialId: this.highlightMaterialId,
+                defaultPlaneMaterialId: this.defaultPlaneMaterialId
+            }
+        );
+    }
+
+    private createTitle(){
+        let size = this.getMenuSize();
+        this._label = MRE.Actor.Create(this.context, {
+			actor: {
+                name: 'title_text',
+                parentId: this._menu.id,
+				transform: {
+					local: { 
+                        position: {
+                            x: size.width/2,
+                            y: size.height + this.titleTextHeight/2 + this.margin,
+                            z: 0
+                        } 
+                    }
+				},
+				text: {
+					contents: this.title,
+                    anchor: MRE.TextAnchorLocation.MiddleCenter,
+                    color: MRE.Color3.White(),
+					height: this.titleTextHeight
+				}
+			}
+        });
+    }
+
     private defaultGridLayoutData(row: number, col: number){
         let materialId = this.defaultMaterialId;
         return [...Array(row)].map((x,r) => [...Array(col)].map((y,c) => ({
@@ -203,6 +258,13 @@ export abstract class GridMenu {
             height: 1,
             depth: 1,
             scale: 1
+        }
+    }
+    
+    private defaultPlaneDimensions(){
+        return {
+            width: 1,
+            height: 1
         }
     }
 
@@ -252,17 +314,47 @@ export abstract class GridMenu {
         this._menu.appearance.enabled = true;
         this._menu.transform.local.position.z = 0;
     }
+
+    public offsetMenu(offset: {x: number, y: number}){
+        this._menu.transform.local.position.x += offset.x;
+        this._menu.transform.local.position.y += offset.y;
+    }
+
+    public planesAlignLeft(){
+        this.buttons.forEach(b=>{b.planeAlignLeft()});
+    }
+
+    public labelsRightToPlane(){
+        this.buttons.forEach(b=>{b.labelRightToPlane()});
+    }
+
+    public updateData(data: CellData[][]){
+        if (data.length < this.row) { return; }
+        for (let i=0; i<data.length; i++){
+            for (let j=0; j<data[i].length; j++){
+                let d = data[i][j];
+                let n = 'btn_'+i+'_'+j;
+                let b = this.buttons.get(n);
+                if (b !== undefined) { 
+                    if (d.text !== undefined) { b.updateLabel(d.text); }
+                }
+            }
+        }
+    }
 }
 
 export class Button {
     private _text: string;
     private _color: MRE.Color3;
     private textHeight: number;
-    private enabled: boolean;
 
     private _box: MRE.Actor;
     private _label: MRE.Actor;
     private _picture: MRE.Actor;
+
+    private buttonDimensions: ButtonOptions['buttonDimensions'];
+    private planeDimensions: ButtonOptions['planeDimensions'];
+    private planeMeshId: MRE.Guid;
 
     private buttonBehavior: MRE.ButtonBehavior;
 
@@ -291,8 +383,9 @@ export class Button {
 
         let meshId = options.meshId;
         let materialId = options.materialId;
-        let buttonDepth = options.buttonDepth;
-        let planeMeshId = options.planeMeshId;
+        this.buttonDimensions = (options.buttonDimensions !== undefined) ? options.buttonDimensions : {width: 0, height: 0, depth: 0};
+        this.planeDimensions = (options.planeDimensions !== undefined) ? options.planeDimensions : {width: this.buttonDimensions.width, height: this.buttonDimensions.height};
+        this.planeMeshId = options.planeMeshId;
 
         // debug
         let planeMaterialId = options.defaultPlaneMaterialId;
@@ -323,7 +416,7 @@ export class Button {
                 name: 'Text',
                 parentId,
 				transform: {
-					local: { position: {x: position.x, y: position.y, z: position.z - buttonDepth - 0.0001} }
+					local: { position: {x: position.x, y: position.y, z: position.z - this.buttonDimensions.depth - 0.0001} }
 				},
 				text: {
 					contents: this._text,
@@ -334,19 +427,23 @@ export class Button {
 			}
         });
 
-        if (planeMeshId != undefined){
+        if (this.planeMeshId != undefined){
             this._picture = MRE.Actor.Create(context, {
                 actor: {
                     parentId,
                     appearance: {
-                        meshId: planeMeshId,
+                        meshId: this.planeMeshId,
                         materialId: planeMaterialId,
                         enabled
                     },
                     transform: {
                         local: {
                             scale,
-                            position: {x: position.x, y: position.y, z: position.z - buttonDepth/2 - 0.0001},
+                            position: {
+                                x: position.x,
+                                y: position.y,
+                                z: position.z - this.buttonDimensions.depth/2 - 0.0001
+                            },
                             rotation: MRE.Quaternion.FromEulerAngles(-90 * MRE.DegreesToRadians, 0 * MRE.DegreesToRadians, 0 * MRE.DegreesToRadians),
                         }
                     }
@@ -355,6 +452,15 @@ export class Button {
         }
         
         this.buttonBehavior = this._button.setBehavior(MRE.ButtonBehavior);
+    }
+
+    public planeAlignLeft(){
+        this._picture.transform.local.position.x += (this.planeDimensions.width - this.buttonDimensions.width)/2;
+    }
+
+    public labelRightToPlane(){
+        this._label.transform.local.position.x += (this.planeDimensions.width - this.buttonDimensions.width/2) + 0.01;
+        this._label.text.anchor = MRE.TextAnchorLocation.MiddleLeft;
     }
 
     public addBehavior(handler: MRE.ActionHandler<MRE.ButtonEventData>){
