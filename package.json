@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@microsoft/mixed-reality-extension-sdk": "^0.20.0",
+    "clone-deep": "^4.0.1",
     "dotenv": "^8.2.0",
     "geo-tz": "^6.0.0",
     "moment-timezone": "^0.5.31",
