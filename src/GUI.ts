@@ -1,7 +1,7 @@
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
-import { MreArgumentError, Vector2 } from '@microsoft/mixed-reality-extension-sdk';
-import { xml } from 'cheerio';
-import Inventory from './app';
+import { Vector2 } from '@microsoft/mixed-reality-extension-sdk';
+import { off } from 'superagent';
+import { Inventory, ItemDescriptor } from './app';
 
 const OWNER_NAME = process.env['OWNER_NAME'];
 
@@ -12,14 +12,15 @@ export interface ButtonOptions {
     scale?: MRE.Vector3Like,
     text?: string,
     textHeight?: number,
-    color?:MRE.Color3,
+    color?: MRE.Color3,
+    anchor?: MRE.TextAnchorLocation,
     enabled?: boolean,
     layer?: MRE.CollisionLayer,
     parentId?: MRE.Guid,
     planeMeshId?: MRE.Guid,
     meshId: MRE.Guid,
     materialId: MRE.Guid,
-    defaultPlaneMaterialId?: MRE.Guid, // debug
+    planeMaterial?: MRE.Material,
     buttonDimensions?: {
         width: number,
         height: number,
@@ -33,6 +34,7 @@ export interface ButtonOptions {
 
 // plane must be defined if provided planeMeshId
 export interface GridMenuOptions {
+    name?: string,
     offset?:{
         x: number,
         y: number
@@ -47,7 +49,9 @@ export interface GridMenuOptions {
         depth: number,
         highlightDepth?: number,
         scale?: number,
-        textHeight?: number
+        textHeight?: number,
+        textColor?: MRE.Color3,
+        textAnchor?: MRE.TextAnchorLocation
     },
     plane?:{
         width: number,
@@ -62,13 +66,13 @@ export interface GridMenuOptions {
     highlightMeshId?: MRE.Guid,
     highlightMaterialId?: MRE.Guid,
     planeMeshId?: MRE.Guid,
+    defaultPlaneMaterial?: MRE.Material,
     parentId?: MRE.Guid,
-    defaultPlaneMaterialId?: MRE.Guid // debug
 }
 
 export interface CellData{
     text?: string,
-    materialId?: MRE.Guid
+    material?: MRE.Material
 }
 
 export abstract class GridMenu {
@@ -78,6 +82,9 @@ export abstract class GridMenu {
     private _menu: MRE.Actor;
     private _label: MRE.Actor;
     private assets: MRE.AssetContainer;
+
+    private textures: Map<string, MRE.Texture>;
+    private materials: Map<string, MRE.Material>;
 
     private meshId: MRE.Guid;
     private defaultMaterialId: MRE.Guid;
@@ -89,7 +96,8 @@ export abstract class GridMenu {
     private parentId: MRE.Guid;
 
     // debug
-    private defaultPlaneMaterialId: MRE.Guid;
+    private name: string;
+    private defaultPlaneMaterial: MRE.Material;
 
     private row: number;
     private col: number;
@@ -107,17 +115,24 @@ export abstract class GridMenu {
     private highlightedButtonCoord: Vector2;
     private isHighlighted: boolean = false;
 
+    private _curPageNum: number = 1;
+    private itemDatabase: ItemDescriptor[];
+
     // interface
     abstract onItemClick(coord: Vector2, name: string, user: MRE.User): void;
 
     // get 
     get root() {return this._menu};
     get highlighted() {return this.isHighlighted};
+    get coord() {return this.highlightedButtonCoord};
+    get curPageNum() {return this._curPageNum};
 
     constructor(_context: MRE.Context, _app: Inventory, options?: GridMenuOptions){
         this.context = _context;
         this.app = _app;
-        // this.assets = new MRE.AssetContainer(this.context);
+        this.assets = new MRE.AssetContainer(this.context);
+        this.textures = new Map<string, MRE.Texture>();
+        this.materials = new Map<string, MRE.Material>();
 
         this.row = (options.shape.row == undefined) ? 1 : options.shape.row;
         this.col = (options.shape.col == undefined) ? 1 : options.shape.col;
@@ -135,7 +150,8 @@ export abstract class GridMenu {
         this.highlightMeshId = options.highlightMeshId;
         this.highlightMaterialId = options.highlightMaterialId;
         this.planeMeshId = options.planeMeshId;
-        this.defaultPlaneMaterialId = options.defaultPlaneMaterialId; // debug
+        this.defaultPlaneMaterial = options.defaultPlaneMaterial; // debug
+        this.name = options.name;
 
         this.parentId = (options.parentId == undefined) ? null : options.parentId;
 
@@ -183,9 +199,11 @@ export abstract class GridMenu {
                         meshId: this.meshId,
                         text: d.text,
                         textHeight: this.cell.textHeight,
-                        materialId: d.materialId,
+                        color: this.cell.textColor,
+                        anchor: this.cell.textAnchor,
+                        materialId: this.defaultMaterialId,
                         planeMeshId: this.planeMeshId,
-                        defaultPlaneMaterialId: this.defaultPlaneMaterialId
+                        planeMaterial: (d.material !== undefined) ? d.material: this.defaultPlaneMaterial
                     }
                 );
                 this.buttons.set(name, btn);
@@ -213,8 +231,7 @@ export abstract class GridMenu {
                 parentId: this._menu.id,
                 meshId: this.highlightMeshId,
                 text: '',
-                materialId: this.highlightMaterialId,
-                defaultPlaneMaterialId: this.defaultPlaneMaterialId
+                materialId: this.highlightMaterialId
             }
         );
     }
@@ -244,11 +261,18 @@ export abstract class GridMenu {
         });
     }
 
-    private defaultGridLayoutData(row: number, col: number){
-        let materialId = this.defaultMaterialId;
+    public defaultCellData(): CellData{
+        return {
+            text: '',
+            material: this.defaultPlaneMaterial
+        }
+    }
+
+    private defaultGridLayoutData(row: number, col: number): CellData[][]{
+        let material = this.defaultPlaneMaterial;
         return [...Array(row)].map((x,r) => [...Array(col)].map((y,c) => ({
             text: '',
-            materialId
+            material
         })));
     }
 
@@ -299,6 +323,11 @@ export abstract class GridMenu {
         this.highlightedButtonCoord = coord;
         this.moveHighlightTo(this.highlightedButtonCoord);
     }
+
+    public getHighlightedIndex(coord: Vector2){
+        let pageSize = this.row * this.col;
+        return (this.curPageNum - 1) * pageSize + ( coord.x*this.col + coord.y );
+    }
     
     private moveHighlightTo(coord: Vector2){
         this.highlightButton._button.transform.local.position.x = this.highlightedButtonCoord.y * (this.cell.width + this.margin) + this.cell.width/2;
@@ -320,6 +349,10 @@ export abstract class GridMenu {
         this._menu.transform.local.position.y += offset.y;
     }
 
+    public offsetLabels(offset: {x: number, y: number}){
+        this.buttons.forEach(b=>{b.offsetLabel(offset)});
+    }
+
     public planesAlignLeft(){
         this.buttons.forEach(b=>{b.planeAlignLeft()});
     }
@@ -328,8 +361,12 @@ export abstract class GridMenu {
         this.buttons.forEach(b=>{b.labelRightToPlane()});
     }
 
+    public loadItemDatabase(database: ItemDescriptor[]){
+        this.itemDatabase = database;
+    }
+
     public updateData(data: CellData[][]){
-        if (data.length < this.row) { return; }
+        if (data.length < this.row) {return;}
         for (let i=0; i<data.length; i++){
             for (let j=0; j<data[i].length; j++){
                 let d = data[i][j];
@@ -337,8 +374,70 @@ export abstract class GridMenu {
                 let b = this.buttons.get(n);
                 if (b !== undefined) { 
                     if (d.text !== undefined) { b.updateLabel(d.text); }
+                    if (d.material !== undefined) { b.updateMaterial(b._plane, d.material); }
                 }
             }
+        }
+    }
+
+    public loadMaterial(name: string, uri: string){
+        let texture;
+        if (!this.textures.has('texture_'+name)){
+            texture = this.assets.createTexture('texture_'+name, {uri});
+            this.textures.set('texture_'+name, texture);
+        }else{
+            texture = this.textures.get('texture_'+name);
+        }
+
+        let material;
+        if(!this.materials.has('material_'+name)){
+            material = this.assets.createMaterial('material_'+name, { mainTextureId: texture.id });
+            this.materials.set('material_'+name, material);
+            console.log(this.name, 'new material', 'material_'+name, material.id);
+        }else{
+            material = this.materials.get('material_'+name);
+            console.log(this.name, 'old material', 'material_'+name, material.id);
+        }
+        return material;
+    }
+
+    // convert 1d-array to 2d-array
+    private reshape(arr: CellData[], row: number, col: number){
+        let pageSize = row * col;
+        if (arr.length < pageSize){
+            let r = this.itemDatabase.length % pageSize;
+            for (let i=0; i<pageSize-r; i++){
+                arr.push(this.defaultCellData());
+            }
+        }
+
+        let ret = [];
+        while(arr.length) { ret.push(arr.splice(0,col)); }
+        return ret;
+    }
+
+    public updatePage(pageData: ItemDescriptor[]){
+        let data = pageData.map(d => ({
+            text: d.count.toString(),
+            material: this.loadMaterial(d.name, d.obj.thumbnailUri)
+        }));
+        this.updateData(this.reshape(data, this.row, this.col));
+    }
+
+    private getPageNum(){
+        let pageSize = this.row * this.col;
+        return this.itemDatabase.length/pageSize + ((this.itemDatabase.length%pageSize == 0) ? 0 : 1);
+    }
+
+    public incrementPageNum(){
+        if (this._curPageNum < this.getPageNum()-1){
+            this._curPageNum += 1;
+        }
+    }
+
+    public decrementPageNum(){
+        if (this._curPageNum > 1){
+            this._curPageNum -= 1;
         }
     }
 }
@@ -346,6 +445,7 @@ export abstract class GridMenu {
 export class Button {
     private _text: string;
     private _color: MRE.Color3;
+    private anchor: MRE.TextAnchorLocation;
     private textHeight: number;
 
     private _box: MRE.Actor;
@@ -355,6 +455,7 @@ export class Button {
     private buttonDimensions: ButtonOptions['buttonDimensions'];
     private planeDimensions: ButtonOptions['planeDimensions'];
     private planeMeshId: MRE.Guid;
+    private planeMaterial: MRE.Material;
 
     private buttonBehavior: MRE.ButtonBehavior;
 
@@ -380,6 +481,7 @@ export class Button {
         this._text = (options.text !== undefined) ? options.text : '?';
         this._color = (options.color !== undefined) ? options.color : MRE.Color3.Black();
         this.textHeight = (options.textHeight !== undefined) ? options.textHeight : 0.05;
+        this.anchor = (options.anchor !== undefined) ? options.anchor : MRE.TextAnchorLocation.MiddleCenter;
 
         let meshId = options.meshId;
         let materialId = options.materialId;
@@ -388,7 +490,7 @@ export class Button {
         this.planeMeshId = options.planeMeshId;
 
         // debug
-        let planeMaterialId = options.defaultPlaneMaterialId;
+        this.planeMaterial = options.planeMaterial;
 
         this._box = MRE.Actor.Create(context, {
             actor: {
@@ -420,7 +522,7 @@ export class Button {
 				},
 				text: {
 					contents: this._text,
-					anchor: MRE.TextAnchorLocation.MiddleCenter,
+					anchor: this.anchor,
                     color: this._color,
 					height: this.textHeight
 				}
@@ -433,7 +535,7 @@ export class Button {
                     parentId,
                     appearance: {
                         meshId: this.planeMeshId,
-                        materialId: planeMaterialId,
+                        materialId: this.planeMaterial.id,
                         enabled
                     },
                     transform: {
@@ -467,14 +569,22 @@ export class Button {
         this.buttonBehavior.onClick(handler);
     }
 
-    public updateLabel(text: string, _color?: MRE.Color3){
-        let color = (_color !== undefined) ? _color : MRE.Color3.Black();
+    public updateLabel(text: string, color?: MRE.Color3){
         this._label.text.contents = text;
         this._label.text.color = color;
     }
 
+    public offsetLabel(offset: {x: number, y: number}){
+        this._label.transform.local.position.x += offset.x;
+        this._label.transform.local.position.y += offset.y;
+    }
+
     public updateColor(_color: MRE.Color3){
         this._button.appearance.material.color = new MRE.Color4(_color.r, _color.g, _color.b, 1);
+    }
+
+    public updateMaterial(actor: MRE.Actor, material: MRE.Material){
+        actor.appearance.material = material;
     }
 
     public enable(){

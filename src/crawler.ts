@@ -83,7 +83,7 @@ export class AltVRCrawler{
             let it = { 
                 name: t[0],
                 artifactId: t[1],
-                thumbnailUrl: n.children('img').attr('src') ,
+                thumbnailUri: n.children('img').attr('src') ,
             };
             items.push(it);
         });

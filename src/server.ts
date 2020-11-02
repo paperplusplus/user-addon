@@ -1,6 +1,6 @@
 import { log, WebHost, Permissions } from '@microsoft/mixed-reality-extension-sdk';
 import { resolve as resolvePath } from 'path';
-import Inventory from './app';
+import { Inventory } from './app';
 
 log.enable('app');
 

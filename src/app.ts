@@ -9,9 +9,10 @@ const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').diges
 
 const geotz = require('geo-tz');
 const moment = require('moment-timezone');
+const cloneDeep = require('clone-deep');
 
 import {fetchJSON} from './fetchJSON';
-import {GridMenu, Button} from './GUI';
+import {GridMenu, Button, CellData} from './GUI';
 import { Vector2 } from '@microsoft/mixed-reality-extension-sdk';
 
 const API_KEY = process.env['API_KEY'];
@@ -25,14 +26,14 @@ const DELAY_BETWEEN_SOUNDS = 100;
 const RADIUS=0.1;
 
 // Main Menu
-const MAIN_MENU_ITEMS = ['Inventory', 'Shop', 'Map', 'Tools', 'Settings'];
+const MAIN_MENU_ITEMS = ['Inventory', 'Shop', 'Map', 'Settings'];
 const MAIN_MENU_CELL_WIDTH = 0.3;
 const MAIN_MENU_CELL_HEIGHT = 0.1;
 const MAIN_MENU_CELL_DEPTH = 0.005;
 const MAIN_MENU_CELL_MARGIN = 0.01;
 const MAIN_MENU_CELL_SCALE = 1;
 
-const MAIN_MENU_CONTROL_ITEMS = ['Lock', 'Detach', 'Hide'];
+const MAIN_MENU_CONTROL_ITEMS = ['Lock', 'Detach', 'Tools'];
 const MAIN_MENU_CONTROL_CELL_WIDTH = 0.095;
 const MAIN_MENU_CONTROL_CELL_HEIGHT = 0.1;
 const MAIN_MENU_CONTROL_CELL_DEPTH = 0.0005;
@@ -157,7 +158,7 @@ enum ItemType {
     'Potion'
 }
 
-type ItemDescriptor = {
+export interface ItemDescriptor {
     obj: ObjectDescriptor,
     id: number,
     name: string,
@@ -168,7 +169,7 @@ type ItemDescriptor = {
     cost: number,
 }
 
-type PlayerStats = {
+type UserStats = {
     hp: number,
     attack: number,
     defense: number,
@@ -189,9 +190,6 @@ class MainMenu extends GridMenu{
                 this.app.inventory.offsetMenu({x: w + SHOP_CELL_MARGIN*2, y: 0});
                 this.app.info.offsetMenu({x: w + SHOP_CELL_MARGIN*2, y: 0});
                 this.app.switchScene('shop_menu');
-                break;
-            case MAIN_MENU_ITEMS.indexOf('Tools'):
-                this.app.switchScene('tools_menu');
                 break;
             case MAIN_MENU_ITEMS.indexOf('Settings'):
                 break;
@@ -214,9 +212,8 @@ class MainMenuControlStrip extends GridMenu{
                 break;
             case MAIN_MENU_CONTROL_ITEMS.indexOf('Detach'):
                 break;
-            case MAIN_MENU_CONTROL_ITEMS.indexOf('Hide'):
-                this.highlight(coord);
-                // TODOs: implement hideBall()
+            case MAIN_MENU_CONTROL_ITEMS.indexOf('Tools'):
+                this.app.switchScene('tools_menu');
                 break;
         }
     }
@@ -285,10 +282,19 @@ class ShopMenuControlStrip extends GridMenu{
         let row = coord.x;
         switch(row){
             case SHOP_CONTROL_ITEMS.indexOf('Prev'):
+                this.app.shop.decrementPageNum();
+                this.app.shop.updatePage( this.app.getShopPageData() );
                 break;
             case SHOP_CONTROL_ITEMS.indexOf('Next'):
+                this.app.shop.incrementPageNum();
+                this.app.shop.updatePage( this.app.getShopPageData() );
                 break;
             case SHOP_CONTROL_ITEMS.indexOf('Buy'):
+                if (this.app.shop.highlighted){
+                    let index = this.app.shop.getHighlightedIndex(this.app.shop.coord);
+                    this.app.buyItem(index);
+                    this.app.inventory.updatePage( this.app.getInventoryPageData() );
+                }
                 break;
             case SHOP_CONTROL_ITEMS.indexOf('Back'):
                 let w = this.app.shop.getMenuSize().width + this.app.shopControl.getMenuSize().width;
@@ -310,6 +316,9 @@ class ShopInventoryControlStrip extends GridMenu{
             case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Next'):
                 break;
             case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Sell'):
+                let index = this.app.inventory.getHighlightedIndex(this.app.inventory.coord);
+                this.app.sellItem(index);
+                this.app.inventory.updatePage( this.app.getInventoryPageData() );
                 break;
         }
     }
@@ -348,7 +357,7 @@ class UserStatsPanel extends GridMenu{
 /**
  * The main class of this app. All the logic goes here.
  */
-export default class Inventory {
+export class Inventory {
 
     private context: MRE.Context;
     private baseUrl: string;
@@ -419,9 +428,7 @@ export default class Inventory {
     private joinedSound: MRE.Sound;
     private leftSound: MRE.Sound;
 
-    //debug
-    private defaultPlaneMaterialId: MRE.Guid;
-    private texture: MRE.Texture;
+    private defaultPlaneMaterial: MRE.Material;
 
 
     ////////////////
@@ -456,6 +463,9 @@ export default class Inventory {
     // data
     private itemDatabase: ItemDescriptor[];
     private userItems: ItemDescriptor[];
+    private itemIdToItem: Map<number, ItemDescriptor> = new Map<number, ItemDescriptor>();
+
+    private userStats: UserStats;
 
     // get
     get scene() { return this.currentScene; }
@@ -463,13 +473,12 @@ export default class Inventory {
     get inventory() { return this.inventoryMenu; }
     get shop() { return this.shopMenu; }
     get shopControl() { return this.shopMenuControlStrip; }
+    get url() { return this.baseUrl; }
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
         this.context = _context;
         this.baseUrl = _baseUrl;
         this.assets = new MRE.AssetContainer(this.context);
-
-        this.texture = this.assets.createTexture('pete', {uri: `${this.baseUrl}/pete.jpg`});
 
         // mainmenu button
         this.mainMenuMeshId = this.assets.createBoxMesh('main_menu_btn_mesh', MAIN_MENU_CELL_WIDTH, MAIN_MENU_CELL_HEIGHT, MAIN_MENU_CELL_DEPTH).id;
@@ -490,17 +499,17 @@ export default class Inventory {
         this.highlightMaterialId = this.assets.createMaterial('highlight_btn_material', { color: MRE.Color3.Red() }).id;
 
         // inventory plane
-        this.defaultPlaneMaterialId = this.assets.createMaterial('default_plane_material', { emissiveTextureId: this.texture.id, mainTextureId: this.texture.id }).id;
+        this.defaultPlaneMaterial = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.DarkGray() });
         this.planeMeshId = this.assets.createPlaneMesh('plane_mesh', CELL_WIDTH, CELL_HEIGHT).id;
 
         // inventory control
         this.controlMeshId = this.assets.createBoxMesh('control_btn_mesh', CONTROL_CELL_WIDTH, CONTROL_CELL_HEIGHT, CONTROL_CELL_DEPTH).id;
-        this.controlDefaultMaterialId = this.assets.createMaterial('control_default_btn_material', { color: MRE.Color3.DarkGray() }).id;
+        this.controlDefaultMaterialId = this.assets.createMaterial('control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
         this.controlHighlightMeshId = this.assets.createBoxMesh('control_highlight_mesh', CONTROL_CELL_WIDTH+CONTROL_CELL_MARGIN, CONTROL_CELL_HEIGHT+CONTROL_CELL_MARGIN, CONTROL_CELL_DEPTH/2).id;
         this.controlHighlightMaterialId = this.assets.createMaterial('control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
 
         // info panel
-        this.infoPanelMaterialId = this.assets.createMaterial('info_panel_material', { color: MRE.Color3.DarkGray() }).id;;
+        this.infoPanelMaterialId = this.assets.createMaterial('info_panel_material', { color: MRE.Color3.LightGray() }).id;;
 
         // inventory equipment
         this.equipmentMenuMeshId = this.assets.createBoxMesh('equipment_menu_btn_mesh', EQUIPMENT_CELL_WIDTH, EQUIPMENT_CELL_HEIGHT, EQUIPMENT_CELL_DEPTH).id;
@@ -511,7 +520,7 @@ export default class Inventory {
 
         // user stats panel
         this.userStatsMeshId = this.assets.createBoxMesh('user_stats_btn_mesh', STATS_CELL_WIDTH, STATS_CELL_HEIGHT, STATS_CELL_DEPTH).id;
-        this.userStatsMaterialId = this.assets.createMaterial('user_stats_material', { color: MRE.Color3.DarkGray() }).id;;
+        this.userStatsMaterialId = this.assets.createMaterial('user_stats_material', { color: MRE.Color3.LightGray() }).id;;
 
         // shop menu
         this.shopMenuMeshId = this.assets.createBoxMesh('shop_menu_btn_mesh', SHOP_CELL_WIDTH, SHOP_CELL_HEIGHT, SHOP_CELL_DEPTH).id;
@@ -520,15 +529,15 @@ export default class Inventory {
         this.shopMenuHighlightMaterialId = this.assets.createMaterial('shop_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
         this.shopMenuPlaneMeshId = this.assets.createPlaneMesh('shop_menu_plane_mesh', SHOP_PLANE_WIDTH, SHOP_PLANE_HEIGHT).id;
         
-        this.shopMenuInfoPanelMaterialId = this.assets.createMaterial('shop_menu_info_panel_material', { color: MRE.Color3.DarkGray() }).id;
+        this.shopMenuInfoPanelMaterialId = this.assets.createMaterial('shop_menu_info_panel_material', { color: MRE.Color3.LightGray() }).id;
 
         this.shopMenuControlMeshId = this.assets.createBoxMesh('shop_menu_control_btn_mesh', SHOP_CONTROL_CELL_WIDTH, SHOP_CONTROL_CELL_HEIGHT, SHOP_CONTROL_CELL_DEPTH).id;
-        this.shopMenuControlDefaultMaterialId = this.assets.createMaterial('shop_menu_control_default_btn_material', { color: MRE.Color3.DarkGray() }).id;
+        this.shopMenuControlDefaultMaterialId = this.assets.createMaterial('shop_menu_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
         this.shopMenuControlHighlightMeshId = this.assets.createBoxMesh('shop_menu_control_highlight_mesh', SHOP_CONTROL_CELL_WIDTH+SHOP_CONTROL_CELL_MARGIN, SHOP_CONTROL_CELL_HEIGHT+SHOP_CONTROL_CELL_MARGIN, SHOP_CONTROL_CELL_DEPTH/2).id;
         this.shopMenuControlHighlightMaterialId = this.assets.createMaterial('shop_menu_control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
 
         this.shopInventoryControlMeshId = this.assets.createBoxMesh('shop_inventory_control_btn_mesh', SHOP_INVENTORY_CONTROL_CELL_WIDTH, SHOP_INVENTORY_CONTROL_CELL_HEIGHT, SHOP_INVENTORY_CONTROL_CELL_DEPTH).id;
-        this.shopInventoryControlDefaultMaterialId = this.assets.createMaterial('shop_inventory_control_default_btn_material', { color: MRE.Color3.DarkGray() }).id;
+        this.shopInventoryControlDefaultMaterialId = this.assets.createMaterial('shop_inventory_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
         this.shopInventoryControlHighlightMeshId = this.assets.createBoxMesh('shop_inventory_control_highlight_mesh', SHOP_INVENTORY_CONTROL_CELL_WIDTH+SHOP_INVENTORY_CONTROL_CELL_MARGIN, SHOP_INVENTORY_CONTROL_CELL_HEIGHT+SHOP_INVENTORY_CONTROL_CELL_MARGIN, SHOP_INVENTORY_CONTROL_CELL_DEPTH/2).id;
         this.shopInventoryControlHighlightMaterialId = this.assets.createMaterial('shop_inventory_control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
 
@@ -567,14 +576,16 @@ export default class Inventory {
         this.createInfoPanel();
         this.createEquipmentMenu();
         this.createUserStatsPanel();
-        // this.updateInventoryData();
+        this.inventoryMenu.loadItemDatabase( this.userItems );
+        this.inventoryMenu.updatePage( this.getInventoryPageData() );
 
         // shop menu
         this.createShopMenu();
         this.createShopMenuInfoPanel();
         this.createShopMenuControlStrip();
         this.createShopInventoryControlStrip();
-        this.updateShopData(this.itemDatabase.splice(0,1));
+        this.shopMenu.loadItemDatabase( this.itemDatabase );
+        this.shopMenu.updatePage( this.getShopPageData() );
 
         // tools menu
         this.createToolsMenu();
@@ -606,7 +617,6 @@ export default class Inventory {
     //// scenes
     public switchScene(scene: string){
         if (this.currentScene == scene){
-            console.log('same scene');
             return;
         }
         // default scene
@@ -636,12 +646,69 @@ export default class Inventory {
     /////////////////
     //// data
     private loadData(){
-        this.itemDatabase = Object.assign({}, require('../public/data/items.json'));
-        this.userItems = Object.assign({});
+        this.itemDatabase = require('../public/data/items.json');
+        this.userItems = [];
+
+        this.userStats = {
+            hp: 100,
+            attack: 100,
+            defense: 100,
+            coins: 100
+        }
     }
 
-    private updateShopData(page: ItemDescriptor[]){
+    private itemDescription(item: ItemDescriptor){
+        return `
+        name: ${item.name},\n
+        count: ${item.count},\n
+        cost: ${item.cost},\n
+        ${(item.attack !== undefined) ? 'attack: ' + item.attack : ((item.defense !== undefined) ? 'defense ' + item.defense : '')},\n
+        `;
+    }
 
+    public getShopPageData(){
+        let pageSize = SHOP_DIMENSIONS.x * SHOP_DIMENSIONS.y;
+        return this.itemDatabase.slice(pageSize*(this.shopMenu.curPageNum-1), pageSize*this.shopMenu.curPageNum);
+    }
+
+    public getInventoryPageData(){
+        let pageSize = INVENTORY_DIMENSIONS.x * INVENTORY_DIMENSIONS.y;
+        return this.userItems.slice(pageSize*(this.inventoryMenu.curPageNum-1), pageSize*this.inventoryMenu.curPageNum);
+    }
+
+    public addItemToInventory(item: ItemDescriptor){
+        if (!this.itemIdToItem.has(item.id)){
+            let it = cloneDeep(item)
+            this.userItems.push(it);
+            this.itemIdToItem.set(item.id, it);
+        }else{
+            this.itemIdToItem.get(item.id).count += 1;
+        }
+    }
+
+    public buyItem(index: number){
+        let item = this.itemDatabase[index];
+        if (this.userStats.coins < item.cost){
+            this.shopMenuInfoPanel.updateData([[{text: 'Insufficient funds'}]]);
+        } else {
+            this.userStats.coins -= item.cost;
+            this.addItemToInventory(item);
+            this.shopMenuInfoPanel.updateData([[{text: `${item.name} added`}]]);
+        }
+    }
+
+    public removeItemFromInventory(index: number){
+        let item = this.userItems[index];
+        item.count -= 1;
+        if (item.count <= 0){
+            this.itemIdToItem.delete(item.id);
+            return this.userItems.splice(index, 1)[0];
+        }
+    }
+
+    public sellItem(index: number){
+        let item = this.removeItemFromInventory(index);
+        if (item) this.userStats.coins += item.cost;
     }
 
     /////////////////
@@ -654,8 +721,7 @@ export default class Inventory {
             enabled: true,
             meshId: this.assets.createSphereMesh('ball_mesh', RADIUS).id,
             materialId: this.assets.createMaterial('ball_material', { color: MRE.Color3.LightGray() }).id,
-            layer: MRE.CollisionLayer.Hologram,
-            defaultPlaneMaterialId: this.defaultPlaneMaterialId // debug
+            layer: MRE.CollisionLayer.Hologram
         });
         this.ball.addBehavior((user,__) => {
             if (this.checkUserName(user, OWNER_NAME)){
@@ -765,6 +831,7 @@ export default class Inventory {
 
     private createInventoryMenu(){
         this.inventoryMenu = new InventoryMenu(this.context, this, {
+            name: 'inventory',
             offset:{
                 x: RADIUS,
                 y: RADIUS
@@ -792,8 +859,7 @@ export default class Inventory {
             planeMeshId: this.planeMeshId,
             parentId: this.ball._button.id,
             title: 'Inventory',
-            // debug
-            defaultPlaneMaterialId: this.defaultPlaneMaterialId
+            defaultPlaneMaterial: this.defaultPlaneMaterial
         });
     }
 
@@ -895,8 +961,7 @@ export default class Inventory {
             parentId: this.ball._button.id,
             data,
             title: 'Equipment',
-            // debug
-            defaultPlaneMaterialId: this.defaultPlaneMaterialId
+            defaultPlaneMaterial: this.defaultPlaneMaterial
         });
         this.equipmentMenu.offsetMenu({
             x: 0,
@@ -909,6 +974,7 @@ export default class Inventory {
 
     private createShopMenu(){
         this.shopMenu = new ShopMenu(this.context, this, {
+            name: 'shop',
             offset:{
                 x: RADIUS,
                 y: RADIUS
@@ -922,7 +988,10 @@ export default class Inventory {
                 height: SHOP_CELL_HEIGHT,
                 depth: SHOP_CELL_DEPTH,
                 scale: SHOP_CELL_SCALE,
-                highlightDepth: SHOP_CELL_DEPTH/2
+                highlightDepth: SHOP_CELL_DEPTH/2,
+                textColor: MRE.Color3.White(),
+                textHeight: 0.01,
+                textAnchor: MRE.TextAnchorLocation.TopRight
             },
             plane: {
                 width: SHOP_CELL_WIDTH,
@@ -936,9 +1005,9 @@ export default class Inventory {
             planeMeshId: this.shopMenuPlaneMeshId,
             parentId: this.ball._button.id,
             title: 'Shop',
-            // debug
-            defaultPlaneMaterialId: this.defaultPlaneMaterialId
+            defaultPlaneMaterial: this.defaultPlaneMaterial
         });
+        this.shopMenu.offsetLabels({x: SHOP_CELL_WIDTH/2, y: SHOP_CELL_HEIGHT/2});
     }
 
     private createShopMenuInfoPanel(){
@@ -1146,6 +1215,7 @@ export default class Inventory {
 
     ////////////////
     //// utils
+
     private parseUser(user: MRE.User){
         let ra = user.properties['remoteAddress'];
         let ipv4 = ra.split(':').pop();
