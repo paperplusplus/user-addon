@@ -1,7 +1,7 @@
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
 import { Vector2 } from '@microsoft/mixed-reality-extension-sdk';
 import { off } from 'superagent';
-import { Inventory, ItemDescriptor } from './app';
+import { Inventory } from './app';
 
 const OWNER_NAME = process.env['OWNER_NAME'];
 
@@ -83,9 +83,6 @@ export abstract class GridMenu {
     private _label: MRE.Actor;
     private assets: MRE.AssetContainer;
 
-    private textures: Map<string, MRE.Texture>;
-    private materials: Map<string, MRE.Material>;
-
     private meshId: MRE.Guid;
     private defaultMaterialId: MRE.Guid;
 
@@ -116,7 +113,6 @@ export abstract class GridMenu {
     private isHighlighted: boolean = false;
 
     private _curPageNum: number = 1;
-    private itemDatabase: ItemDescriptor[];
 
     // interface
     abstract onItemClick(coord: Vector2, name: string, user: MRE.User): void;
@@ -126,13 +122,13 @@ export abstract class GridMenu {
     get highlighted() {return this.isHighlighted};
     get coord() {return this.highlightedButtonCoord};
     get curPageNum() {return this._curPageNum};
+    get _row() {return this.row};
+    get _col() {return this.col};
 
     constructor(_context: MRE.Context, _app: Inventory, options?: GridMenuOptions){
         this.context = _context;
         this.app = _app;
         this.assets = new MRE.AssetContainer(this.context);
-        this.textures = new Map<string, MRE.Texture>();
-        this.materials = new Map<string, MRE.Material>();
 
         this.row = (options.shape.row == undefined) ? 1 : options.shape.row;
         this.col = (options.shape.col == undefined) ? 1 : options.shape.col;
@@ -276,6 +272,18 @@ export abstract class GridMenu {
         })));
     }
 
+    // convert 1d-array to 2d-array
+    public reshape(arr: CellData[]){
+        let fill = this.row * this.col - arr.length;
+        for (let i=0; i<fill; i++){
+            arr.push(this.defaultCellData());
+        }
+
+        let ret = [];
+        while(arr.length) { ret.push(arr.splice(0,this.col)); }
+        return ret;
+    }
+
     private defaultCellDimensions(){
         return {
             width: 1,
@@ -361,10 +369,6 @@ export abstract class GridMenu {
         this.buttons.forEach(b=>{b.labelRightToPlane()});
     }
 
-    public loadItemDatabase(database: ItemDescriptor[]){
-        this.itemDatabase = database;
-    }
-
     public updateData(data: CellData[][]){
         if (data.length < this.row) {return;}
         for (let i=0; i<data.length; i++){
@@ -380,57 +384,13 @@ export abstract class GridMenu {
         }
     }
 
-    public loadMaterial(name: string, uri: string){
-        let texture;
-        if (!this.textures.has('texture_'+name)){
-            texture = this.assets.createTexture('texture_'+name, {uri});
-            this.textures.set('texture_'+name, texture);
-        }else{
-            texture = this.textures.get('texture_'+name);
-        }
-
-        let material;
-        if(!this.materials.has('material_'+name)){
-            material = this.assets.createMaterial('material_'+name, { mainTextureId: texture.id });
-            this.materials.set('material_'+name, material);
-            console.log(this.name, 'new material', 'material_'+name, material.id);
-        }else{
-            material = this.materials.get('material_'+name);
-            console.log(this.name, 'old material', 'material_'+name, material.id);
-        }
-        return material;
-    }
-
-    // convert 1d-array to 2d-array
-    private reshape(arr: CellData[], row: number, col: number){
-        let pageSize = row * col;
-        if (arr.length < pageSize){
-            let r = this.itemDatabase.length % pageSize;
-            for (let i=0; i<pageSize-r; i++){
-                arr.push(this.defaultCellData());
-            }
-        }
-
-        let ret = [];
-        while(arr.length) { ret.push(arr.splice(0,col)); }
-        return ret;
-    }
-
-    public updatePage(pageData: ItemDescriptor[]){
-        let data = pageData.map(d => ({
-            text: d.count.toString(),
-            material: this.loadMaterial(d.name, d.obj.thumbnailUri)
-        }));
-        this.updateData(this.reshape(data, this.row, this.col));
-    }
-
-    private getPageNum(){
+    private getPageNum(total: number){
         let pageSize = this.row * this.col;
-        return this.itemDatabase.length/pageSize + ((this.itemDatabase.length%pageSize == 0) ? 0 : 1);
+        return total/pageSize + ((total%pageSize == 0) ? 0 : 1);
     }
 
-    public incrementPageNum(){
-        if (this._curPageNum < this.getPageNum()-1){
+    public incrementPageNum(total: number){
+        if (this._curPageNum < this.getPageNum(total)-1){
             this._curPageNum += 1;
         }
     }

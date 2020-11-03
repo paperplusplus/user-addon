@@ -108,7 +108,7 @@ const SHOP_CELL_SCALE = 1;
 const SHOP_PLANE_WIDTH = 0.1;
 const SHOP_PLANE_HEIGHT = 0.1;
 
-const SHOP_INFO_PANEL_PLACEHOLDER = 'Buy and Sell';
+const SHOP_INFO_PANEL_PLACEHOLDER = 'Click on item for details';
 const SHOP_INFO_CELL_HEIGHT = 0.1;
 const SHOP_INFO_CELL_DEPTH = 0.005;
 const SHOP_INFO_CELL_MARGIN = 0.005;
@@ -223,11 +223,8 @@ class InventoryMenu extends GridMenu{
     onItemClick(coord: Vector2, name: string, user: MRE.User){
         if (this.app.scene != 'inventory_menu' && this.app.scene != 'shop_menu') { return; }
         this.highlight(coord);
-        if (this.highlighted){
-            this.app.info.updateData([[{text: 'Button '+coord.x+','+coord.y+' clicked.'}]]);
-        } else{
-            this.app.info.updateData([[{text: INFO_PANEL_PLACEHOLDER}]]);
-        }
+        let index = this.app.inventory.getHighlightedIndex(this.app.inventory.coord);
+        this.app.updateInventoryItemDescription(index);
     }
 }
 
@@ -267,6 +264,8 @@ class ShopMenu extends GridMenu{
     onItemClick(coord: Vector2, name: string, user: MRE.User){
         if (this.app.scene != 'shop_menu') { return; }
         this.highlight(coord);
+        let index = this.app.shop.getHighlightedIndex(this.app.shop.coord);
+        this.app.updateShopItemDescription(index);
     }
 }
 
@@ -283,17 +282,17 @@ class ShopMenuControlStrip extends GridMenu{
         switch(row){
             case SHOP_CONTROL_ITEMS.indexOf('Prev'):
                 this.app.shop.decrementPageNum();
-                this.app.shop.updatePage( this.app.getShopPageData() );
+                this.app.updateMenuPage( this.app.shop, this.app.getShopPageData() );
                 break;
             case SHOP_CONTROL_ITEMS.indexOf('Next'):
-                this.app.shop.incrementPageNum();
-                this.app.shop.updatePage( this.app.getShopPageData() );
+                this.app.shop.incrementPageNum(this.app.itemDatabaseLength);
+                this.app.updateMenuPage( this.app.shop, this.app.getShopPageData() );
                 break;
             case SHOP_CONTROL_ITEMS.indexOf('Buy'):
                 if (this.app.shop.highlighted){
                     let index = this.app.shop.getHighlightedIndex(this.app.shop.coord);
                     this.app.buyItem(index);
-                    this.app.inventory.updatePage( this.app.getInventoryPageData() );
+                    this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
                 }
                 break;
             case SHOP_CONTROL_ITEMS.indexOf('Back'):
@@ -312,13 +311,19 @@ class ShopInventoryControlStrip extends GridMenu{
         let row = coord.x;
         switch(row){
             case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Prev'):
+                this.app.inventory.decrementPageNum();
+                this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData() );
                 break;
             case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Next'):
+                this.app.inventory.incrementPageNum(this.app.userItemsLength);
+                this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData() );
                 break;
             case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Sell'):
-                let index = this.app.inventory.getHighlightedIndex(this.app.inventory.coord);
-                this.app.sellItem(index);
-                this.app.inventory.updatePage( this.app.getInventoryPageData() );
+                if (this.app.shop.highlighted){
+                    let index = this.app.inventory.getHighlightedIndex(this.app.inventory.coord);
+                    this.app.sellItem(index);
+                    this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+                }
                 break;
         }
     }
@@ -474,11 +479,18 @@ export class Inventory {
     get shop() { return this.shopMenu; }
     get shopControl() { return this.shopMenuControlStrip; }
     get url() { return this.baseUrl; }
+    get itemDatabaseLength() { return this.itemDatabase.length; }
+    get userItemsLength() { return this.userItems.length; }
+    public textures: Map<string, MRE.Texture>;
+    public materials: Map<string, MRE.Material>;
+
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
         this.context = _context;
         this.baseUrl = _baseUrl;
         this.assets = new MRE.AssetContainer(this.context);
+        this.textures = new Map<string, MRE.Texture>();
+        this.materials = new Map<string, MRE.Material>();
 
         // mainmenu button
         this.mainMenuMeshId = this.assets.createBoxMesh('main_menu_btn_mesh', MAIN_MENU_CELL_WIDTH, MAIN_MENU_CELL_HEIGHT, MAIN_MENU_CELL_DEPTH).id;
@@ -576,16 +588,14 @@ export class Inventory {
         this.createInfoPanel();
         this.createEquipmentMenu();
         this.createUserStatsPanel();
-        this.inventoryMenu.loadItemDatabase( this.userItems );
-        this.inventoryMenu.updatePage( this.getInventoryPageData() );
+        this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d:ItemDescriptor) => d.count.toString() );
 
         // shop menu
         this.createShopMenu();
         this.createShopMenuInfoPanel();
         this.createShopMenuControlStrip();
         this.createShopInventoryControlStrip();
-        this.shopMenu.loadItemDatabase( this.itemDatabase );
-        this.shopMenu.updatePage( this.getShopPageData() );
+        this.updateMenuPage( this.shopMenu, this.getShopPageData() );
 
         // tools menu
         this.createToolsMenu();
@@ -657,13 +667,31 @@ export class Inventory {
         }
     }
 
-    private itemDescription(item: ItemDescriptor){
-        return `
-        name: ${item.name},\n
-        count: ${item.count},\n
-        cost: ${item.cost},\n
-        ${(item.attack !== undefined) ? 'attack: ' + item.attack : ((item.defense !== undefined) ? 'defense ' + item.defense : '')},\n
-        `;
+    public updateShopItemDescription(index: number){
+        let item = this.itemDatabase[index];
+        if (item === undefined) {return}
+        let stat = (item.attack !== undefined) ? `attack: ${item.attack}` : `defense: ${item.defense}`
+        let desc = 
+       `
+       name: ${item.name}
+       cost: ${item.cost}
+       ${stat}
+       `;
+        this.shopMenuInfoPanel.updateData([[{text: desc}]]);
+    }
+
+    public updateInventoryItemDescription(index: number){
+        let item = this.userItems[index];
+        if (item === undefined) {return}
+        let stat = (item.attack !== undefined) ? `attack: ${item.attack}` : `defense: ${item.defense}`
+        let desc = 
+       `
+       name: ${item.name}
+       count: ${item.count}
+       cost: ${item.cost}
+       ${stat}
+       `;
+        this.infoPanel.updateData([[{text: desc}]]);
     }
 
     public getShopPageData(){
@@ -674,6 +702,34 @@ export class Inventory {
     public getInventoryPageData(){
         let pageSize = INVENTORY_DIMENSIONS.x * INVENTORY_DIMENSIONS.y;
         return this.userItems.slice(pageSize*(this.inventoryMenu.curPageNum-1), pageSize*this.inventoryMenu.curPageNum);
+    }
+
+    public updateMenuPage(menu: GridMenu, pageData: ItemDescriptor[], desc?: (d: ItemDescriptor) => string){
+        let f = (desc !== undefined) ? desc : (d:ItemDescriptor)=>d.name;
+        let data = pageData.map(d => ({
+            text: f(d),
+            material: this.loadMaterial(d.name, d.obj.thumbnailUri)
+        }));
+        menu.updateData(menu.reshape(data));
+    }
+
+    public loadMaterial(name: string, uri: string){
+        let texture;
+        if (!this.textures.has('texture_'+name)){
+            texture = this.assets.createTexture('texture_'+name, {uri});
+            this.textures.set('texture_'+name, texture);
+        }else{
+            texture = this.textures.get('texture_'+name);
+        }
+
+        let material;
+        if(!this.materials.has('material_'+name)){
+            material = this.assets.createMaterial('material_'+name, { mainTextureId: texture.id });
+            this.materials.set('material_'+name, material);
+        }else{
+            material = this.materials.get('material_'+name);
+        }
+        return material;
     }
 
     public addItemToInventory(item: ItemDescriptor){
@@ -688,6 +744,7 @@ export class Inventory {
 
     public buyItem(index: number){
         let item = this.itemDatabase[index];
+        if (item === undefined) {return}
         if (this.userStats.coins < item.cost){
             this.shopMenuInfoPanel.updateData([[{text: 'Insufficient funds'}]]);
         } else {
@@ -699,6 +756,7 @@ export class Inventory {
 
     public removeItemFromInventory(index: number){
         let item = this.userItems[index];
+        if (item === undefined) {return}
         item.count -= 1;
         if (item.count <= 0){
             this.itemIdToItem.delete(item.id);
@@ -845,7 +903,10 @@ export class Inventory {
                 height: CELL_HEIGHT,
                 depth: CELL_DEPTH,
                 scale: CELL_SCALE,
-                highlightDepth: CELL_DEPTH/2
+                highlightDepth: CELL_DEPTH/2,
+                textColor: MRE.Color3.White(),
+                textHeight: 0.01,
+                textAnchor: MRE.TextAnchorLocation.TopRight
             },
             plane: {
                 width: CELL_WIDTH,
@@ -861,6 +922,7 @@ export class Inventory {
             title: 'Inventory',
             defaultPlaneMaterial: this.defaultPlaneMaterial
         });
+        this.inventoryMenu.offsetLabels({x: CELL_WIDTH/2, y: CELL_HEIGHT/2});
     }
 
     private createInventoryMenuControlStrip(){
