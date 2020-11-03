@@ -12,8 +12,8 @@ const moment = require('moment-timezone');
 const cloneDeep = require('clone-deep');
 
 import {fetchJSON} from './fetchJSON';
-import {GridMenu, Button, CellData} from './GUI';
-import { Vector2 } from '@microsoft/mixed-reality-extension-sdk';
+import {GridMenu, Button} from './GUI';
+import { Vector2, Vector3 } from '@microsoft/mixed-reality-extension-sdk';
 
 const API_KEY = process.env['API_KEY'];
 const OWNER_NAME = process.env['OWNER_NAME'];
@@ -49,13 +49,13 @@ const CELL_DEPTH = 0.005;
 const CELL_MARGIN = 0.005;
 const CELL_SCALE = 1;
 
-const INVENTORY_CONTROL_ITEMS = ['Prev', 'Next', 'Equip', 'UnEqp', 'Back'];
+const INVENTORY_CONTROL_ITEMS = ['Prev', 'Next', 'Equip', 'Remove', 'Back'];
 const CONTROL_CELL_WIDTH = 0.066
 const CONTROL_CELL_HEIGHT = 0.05;
 const CONTROL_CELL_DEPTH = 0.005;
 const CONTROL_CELL_MARGIN = 0.005;
 const CONTROL_CELL_SCALE = 1;
-const CONTROL_CELL_TEXT_HEIGHT = 0.02;
+const CONTROL_CELL_TEXT_HEIGHT = 0.015;
 
 const INFO_PANEL_PLACEHOLDER = 'Click on item for details';
 const INFO_CELL_HEIGHT = 0.1;
@@ -64,7 +64,7 @@ const INFO_CELL_MARGIN = 0.005;
 const INFO_CELL_SCALE = 1;
 const INFO_CELL_TEXT_HEIGHT = 0.02;
 
-const EQUIPMENT_ITEMS = ['Helmet', 'Armor', 'Weapon', 'Potion'];
+const EQUIPMENT_ITEMS = ['Helmet', 'Armor', 'Weapon', 'Ring'];
 const EQUIPMENT_CELL_WIDTH = 0.3;
 const EQUIPMENT_CELL_HEIGHT = 0.1;
 const EQUIPMENT_CELL_DEPTH = 0.005;
@@ -151,22 +151,15 @@ type ObjectDescriptor = {
 };
 
 // game related data structures.
-enum ItemType {
-    'Helmet' = 0,
-    'Armor',
-    'Weapon',
-    'Potion'
-}
-
 export interface ItemDescriptor {
-    obj: ObjectDescriptor,
     id: number,
     name: string,
-    type: ItemType,
+    type: string,
     attack?: number,
     defense?: number,
     count?: number
-    cost: number,
+    cost?: number,
+    obj?: ObjectDescriptor
 }
 
 type UserStats = {
@@ -211,6 +204,7 @@ class MainMenuControlStrip extends GridMenu{
                 }
                 break;
             case MAIN_MENU_CONTROL_ITEMS.indexOf('Detach'):
+                this.app.unEquipBall(user);
                 break;
             case MAIN_MENU_CONTROL_ITEMS.indexOf('Tools'):
                 this.app.switchScene('tools_menu');
@@ -239,8 +233,20 @@ class ControlMenu extends GridMenu{
             case INVENTORY_CONTROL_ITEMS.indexOf('Prev'):
                 break;
             case INVENTORY_CONTROL_ITEMS.indexOf('Equip'):
+                if (this.app.inventory.highlighted){
+                    let index = this.app.inventory.getHighlightedIndex(this.app.inventory.coord);
+                    this.app.equipItem(index, user);
+                    this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+                    this.app.updateMenuPage( this.app.equipment, this.app._userEquipments, this.app.getItemDescription );
+                }
                 break;
-            case INVENTORY_CONTROL_ITEMS.indexOf('Clear'):
+            case INVENTORY_CONTROL_ITEMS.indexOf('Remove'):
+                if (this.app.inventory.highlighted){
+                    let index = this.app.equipment.getHighlightedIndex(this.app.equipment.coord);
+                    this.app.removeItem(index);
+                    this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+                    this.app.updateMenuPage( this.app.equipment, this.app._userEquipments, this.app.getItemDescription );
+                }
                 break;
             case INVENTORY_CONTROL_ITEMS.indexOf('Back'):
                 this.app.switchScene('main_menu');
@@ -439,6 +445,7 @@ export class Inventory {
     ////////////////
     //// logic
     private ball: Button;
+    private root: MRE.Actor;
 
     // main menu
     private mainMenu: MainMenu;
@@ -468,7 +475,10 @@ export class Inventory {
     // data
     private itemDatabase: ItemDescriptor[];
     private userItems: ItemDescriptor[];
+    private userEquipments: ItemDescriptor[];
     private itemIdToItem: Map<number, ItemDescriptor> = new Map<number, ItemDescriptor>();
+
+    private equippedItems: Map<number, MRE.Actor> = new Map<number, MRE.Actor>();
 
     private userStats: UserStats;
 
@@ -477,6 +487,8 @@ export class Inventory {
     get info() { return this.infoPanel; }
     get inventory() { return this.inventoryMenu; }
     get shop() { return this.shopMenu; }
+    get equipment() { return this.equipmentMenu; }
+    get _userEquipments() { return this.userEquipments; }
     get shopControl() { return this.shopMenuControlStrip; }
     get url() { return this.baseUrl; }
     get itemDatabaseLength() { return this.itemDatabase.length; }
@@ -589,6 +601,7 @@ export class Inventory {
         this.createEquipmentMenu();
         this.createUserStatsPanel();
         this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d:ItemDescriptor) => d.count.toString() );
+        this.updateMenuPage( this.equipmentMenu, this.userEquipments, (d:ItemDescriptor) => d.type );
 
         // shop menu
         this.createShopMenu();
@@ -617,6 +630,9 @@ export class Inventory {
     }
 
     private userLeft(user: MRE.User){
+        if (this.checkUserName(user,OWNER_NAME)){
+            this.ball._button.detach();
+        }
         this.playSound(this.leftSound, {});
         setTimeout(() => {
             this.bye(user);
@@ -658,6 +674,11 @@ export class Inventory {
     private loadData(){
         this.itemDatabase = require('../public/data/items.json');
         this.userItems = [];
+        this.userEquipments = EQUIPMENT_ITEMS.map(e => ({
+            name: e,
+            id: 0,
+            type: e
+        }));
 
         this.userStats = {
             hp: 100,
@@ -683,15 +704,20 @@ export class Inventory {
     public updateInventoryItemDescription(index: number){
         let item = this.userItems[index];
         if (item === undefined) {return}
+
+        let desc = this.getItemDescription(item);
+        this.infoPanel.updateData([[{text: desc}]]);
+    }
+
+    public getItemDescription(item: ItemDescriptor){
+        if (item.id == 0){ return item.type }
         let stat = (item.attack !== undefined) ? `attack: ${item.attack}` : `defense: ${item.defense}`
         let desc = 
-       `
-       name: ${item.name}
+       `name: ${item.name}
        count: ${item.count}
        cost: ${item.cost}
-       ${stat}
-       `;
-        this.infoPanel.updateData([[{text: desc}]]);
+       ${stat}`;
+       return desc;
     }
 
     public getShopPageData(){
@@ -704,11 +730,11 @@ export class Inventory {
         return this.userItems.slice(pageSize*(this.inventoryMenu.curPageNum-1), pageSize*this.inventoryMenu.curPageNum);
     }
 
-    public updateMenuPage(menu: GridMenu, pageData: ItemDescriptor[], desc?: (d: ItemDescriptor) => string){
+    public updateMenuPage(menu: GridMenu, pageData: ItemDescriptor[], desc?: (d: ItemDescriptor, i?: number) => string){
         let f = (desc !== undefined) ? desc : (d:ItemDescriptor)=>d.name;
         let data = pageData.map(d => ({
             text: f(d),
-            material: this.loadMaterial(d.name, d.obj.thumbnailUri)
+            material: (d.obj !== undefined) ? this.loadMaterial(d.name, d.obj.thumbnailUri) : this.defaultPlaneMaterial
         }));
         menu.updateData(menu.reshape(data));
     }
@@ -762,11 +788,77 @@ export class Inventory {
             this.itemIdToItem.delete(item.id);
             return this.userItems.splice(index, 1)[0];
         }
+        return item;
     }
 
     public sellItem(index: number){
         let item = this.removeItemFromInventory(index);
         if (item) this.userStats.coins += item.cost;
+    }
+
+    public equipItem(index: number, user: MRE.User){
+        let item = cloneDeep(this.removeItemFromInventory(index));
+        if (item) {
+            let i = EQUIPMENT_ITEMS.indexOf(item.type);
+            if (i >= 0 && i <= this.userEquipments.length) {
+                // put back equipped
+                let prev = this.userEquipments[i];
+                if( prev.id != 0 ) {
+                    this.addItemToInventory(prev);
+                    this.stripEquipment(prev);
+                }
+                // replace with new item
+                item.count = 1;
+                this.userEquipments[i] = item;
+                this.wearEquipment(item, user);
+            }
+        }
+    }
+
+    public removeItem(index: number){
+        let item = this.userEquipments[index];
+        if (item === undefined || item.id == 0) { return; }
+        this.addItemToInventory(item);
+
+        let dummy = {
+            name: EQUIPMENT_ITEMS[index],
+            id: 0,
+            type: EQUIPMENT_ITEMS[index]
+        }
+        this.userEquipments[index] = dummy;
+        this.stripEquipment(item);
+    }
+
+    public wearEquipment(item: ItemDescriptor, user: MRE.User){
+        const position = item.obj.position ? item.obj.position : { x: 0, y: 0.5, z: 0 }
+        const scale = item.obj.scale ? item.obj.scale : { x: 0.5, y: 0.5, z: 0.5 }
+        const rotation = item.obj.rotation ? item.obj.rotation : { x: 0, y: 180, z: 0 }
+        const attachPoint = <MRE.AttachPoint> (item.obj.attachPoint ? item.obj.attachPoint : 'head')
+
+        let actor = MRE.Actor.CreateFromLibrary(this.context, {
+            resourceId: item.obj.resourceId,
+            actor: {
+                transform: {
+                    local: {
+                        position: position,
+                        rotation: MRE.Quaternion.FromEulerAngles(
+                            rotation.x * MRE.DegreesToRadians,
+                            rotation.y * MRE.DegreesToRadians,
+                            rotation.z * MRE.DegreesToRadians),
+                        scale: scale
+                    }
+                }
+            }
+        });
+        actor.attach(user, attachPoint);
+        this.equippedItems.set(item.id, actor);
+    }
+
+    public stripEquipment(item: ItemDescriptor){
+        if (this.equippedItems.has(item.id)){
+            let actor = this.equippedItems.get(item.id).destroy();
+            this.equippedItems.delete(item.id);
+        }
     }
 
     /////////////////
@@ -781,15 +873,17 @@ export class Inventory {
             materialId: this.assets.createMaterial('ball_material', { color: MRE.Color3.LightGray() }).id,
             layer: MRE.CollisionLayer.Hologram
         });
+        this.root = MRE.Actor.Create(this.context, {
+            actor:{ 
+                transform: { 
+                    local: { position: {x: 0, y: 0, z: 0} }
+                },
+                parentId: this.ball._button.id
+            },
+        });
         this.ball.addBehavior((user,__) => {
             if (this.checkUserName(user, OWNER_NAME)){
                 this.toggleMenu();
-            } else{
-                user.prompt("Text To Speech", true).then((dialog) => {
-                    if (dialog.submitted) {
-                        this.tts(dialog.text);
-                    }
-                });
             }
         });
         
@@ -815,6 +909,10 @@ export class Inventory {
 
     private equipBall(user: MRE.User){
         this.ball._button.attach(user, 'left-hand');
+    }
+
+    public unEquipBall(user: MRE.User){
+        this.ball._button.detach();
     }
 
     public lockBall(){
@@ -851,7 +949,7 @@ export class Inventory {
             defaultMaterialId: this.mainMenuDefaultMaterialId,
             highlightMeshId: this.mainMenuHighlightMeshId,
             highlightMaterialId: this.mainMenuHighlightMaterialId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             title: 'Main Menu',
             data
         });
@@ -882,7 +980,7 @@ export class Inventory {
             defaultMaterialId: this.mainMenuControlDefaultMaterialId,
             highlightMeshId: this.mainMenuControlHighlightMeshId,
             highlightMaterialId: this.mainMenuControlHighlightMaterialId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             data
         });
     }
@@ -918,7 +1016,7 @@ export class Inventory {
             highlightMeshId: this.highlightMeshId,
             highlightMaterialId: this.highlightMaterialId,
             planeMeshId: this.planeMeshId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             title: 'Inventory',
             defaultPlaneMaterial: this.defaultPlaneMaterial
         });
@@ -955,7 +1053,7 @@ export class Inventory {
             defaultMaterialId: this.controlDefaultMaterialId,
             highlightMeshId: this.controlHighlightMeshId,
             highlightMaterialId: this.controlHighlightMaterialId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             data
         });
     }
@@ -984,15 +1082,12 @@ export class Inventory {
             margin: CELL_MARGIN,
             meshId: this.infoPanelMeshId,
             defaultMaterialId: this.infoPanelMaterialId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             data
         });
     }
 
     private createEquipmentMenu(){
-        let data = EQUIPMENT_ITEMS.map(t => [{
-            text: t + ':item#1\n' + 'cost:100\n' + 'attack:100'
-        }]);
         this.equipmentMenu = new EquipmentMenu(this.context, this, {
             offset:{
                 x: RADIUS + this.inventoryMenu.getMenuSize().width + CONTROL_CELL_MARGIN + this.inventoryControlStrip.getMenuSize().width + EQUIPMENT_CELL_MARGIN,
@@ -1020,8 +1115,7 @@ export class Inventory {
             highlightMeshId: this.equipmentMenuHighlightMeshId,
             highlightMaterialId: this.equipmentMenuHighlightMaterialId,
             planeMeshId: this.equipmentMenuPlaneMeshId,
-            parentId: this.ball._button.id,
-            data,
+            parentId: this.root.id,
             title: 'Equipment',
             defaultPlaneMaterial: this.defaultPlaneMaterial
         });
@@ -1065,7 +1159,7 @@ export class Inventory {
             highlightMeshId: this.shopMenuHighlightMeshId,
             highlightMaterialId: this.shopMenuHighlightMaterialId,
             planeMeshId: this.shopMenuPlaneMeshId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             title: 'Shop',
             defaultPlaneMaterial: this.defaultPlaneMaterial
         });
@@ -1096,7 +1190,7 @@ export class Inventory {
             margin: SHOP_CELL_MARGIN,
             meshId: this.shopMenuInfoPanelMeshId,
             defaultMaterialId: this.shopMenuInfoPanelMaterialId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             data
         });
     }
@@ -1127,7 +1221,7 @@ export class Inventory {
             defaultMaterialId: this.shopMenuControlDefaultMaterialId,
             highlightMeshId: this.shopMenuControlHighlightMeshId,
             highlightMaterialId: this.shopMenuControlHighlightMaterialId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             data
         });
     }
@@ -1157,7 +1251,7 @@ export class Inventory {
             defaultMaterialId: this.shopInventoryControlDefaultMaterialId,
             highlightMeshId: this.shopInventoryControlHighlightMeshId,
             highlightMaterialId: this.shopInventoryControlHighlightMaterialId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             data
         });
     }
@@ -1186,7 +1280,7 @@ export class Inventory {
             defaultMaterialId: this.toolsMenuDefaultMaterialId,
             highlightMeshId: this.toolsMenuHighlightMeshId,
             highlightMaterialId: this.toolsMenuHighlightMaterialId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             title: 'Tools',
             data
         });
@@ -1214,16 +1308,18 @@ export class Inventory {
             margin: CELL_MARGIN,
             meshId: this.userStatsMeshId,
             defaultMaterialId: this.userStatsMaterialId,
-            parentId: this.ball._button.id,
+            parentId: this.root.id,
             data
         });
     }
 
     private toggleMenu(){
         if (this.currentScene == ''){
+            this.root.transform.local.position = new Vector3(0, 0, 0);
             this.switchScene(this.prevScene);
         } else{
             this.prevScene = this.currentScene;
+            this.root.transform.local.position = new Vector3(10, 10, 10);
             this.switchScene('');
         }
     }
