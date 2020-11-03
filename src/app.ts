@@ -884,6 +884,12 @@ export class Inventory {
         this.ball.addBehavior((user,__) => {
             if (this.checkUserName(user, OWNER_NAME)){
                 this.toggleMenu();
+            }else{
+                user.prompt("Text To Speech", true).then((dialog) => {
+                    if (dialog.submitted) {
+                        this.tts(dialog.text);
+                    }
+                });
             }
         });
         
