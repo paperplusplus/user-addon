@@ -1,165 +1,26 @@
 import fs from 'fs';
-import crypto from 'crypto';
 import path from 'path';
-
-import * as MRE from '@microsoft/mixed-reality-extension-sdk';
-const text2wav = require('text2wav');
-
+import crypto from 'crypto';
 const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').digest('hex');
 
-const geotz = require('geo-tz');
-const moment = require('moment-timezone');
+import * as MRE from '@microsoft/mixed-reality-extension-sdk';
+import { Vector2, Vector3 } from '@microsoft/mixed-reality-extension-sdk';
 const cloneDeep = require('clone-deep');
 
-import {fetchJSON} from './fetchJSON';
-import {GridMenu, Button} from './GUI';
-import { Vector2, Vector3 } from '@microsoft/mixed-reality-extension-sdk';
+import { GridMenu } from './GUI/gridMenu';
+import { Button } from './GUI/button';
+import { ItemDescriptor } from './database';
 
-const API_KEY = process.env['API_KEY'];
+import { checkUserName } from './utils';
+import { tts, greet, bye } from './tts';
+
 const OWNER_NAME = process.env['OWNER_NAME'];
 
-// CONFIGARABLES.
-const JOINED_SOUND_DURATION = 4860;
-const LEFT_SOUND_DURATION = 3200;
-const DELAY_BETWEEN_SOUNDS = 100;
-
 const RADIUS=0.1;
-
-// Main Menu
-const MAIN_MENU_ITEMS = ['Inventory', 'Shop', 'Map', 'Settings'];
-const MAIN_MENU_CELL_WIDTH = 0.3;
-const MAIN_MENU_CELL_HEIGHT = 0.1;
-const MAIN_MENU_CELL_DEPTH = 0.005;
-const MAIN_MENU_CELL_MARGIN = 0.01;
-const MAIN_MENU_CELL_SCALE = 1;
-
-const MAIN_MENU_CONTROL_ITEMS = ['Lock', 'Detach', 'Tools'];
-const MAIN_MENU_CONTROL_CELL_WIDTH = 0.095;
-const MAIN_MENU_CONTROL_CELL_HEIGHT = 0.1;
-const MAIN_MENU_CONTROL_CELL_DEPTH = 0.0005;
-const MAIN_MENU_CONTROL_CELL_MARGIN = 0.0075;
-const MAIN_MENU_CONTROL_CELL_SCALE = 1;
-const MAIN_MENU_CONTROL_CELL_TEXT_HEIGHT = 0.02;
-
-// Inventory
-const INVENTORY_DIMENSIONS = new Vector2(4, 3);
-const CELL_WIDTH = 0.1;
-const CELL_HEIGHT = 0.1;
-const CELL_DEPTH = 0.005;
-const CELL_MARGIN = 0.005;
-const CELL_SCALE = 1;
-
-const INVENTORY_CONTROL_ITEMS = ['Prev', 'Next', 'Equip', 'Remove', 'Back'];
-const CONTROL_CELL_WIDTH = 0.066
-const CONTROL_CELL_HEIGHT = 0.05;
-const CONTROL_CELL_DEPTH = 0.005;
-const CONTROL_CELL_MARGIN = 0.005;
-const CONTROL_CELL_SCALE = 1;
-const CONTROL_CELL_TEXT_HEIGHT = 0.015;
-
-const INFO_PANEL_PLACEHOLDER = 'Click on item for details';
-const INFO_CELL_HEIGHT = 0.1;
-const INFO_CELL_DEPTH = 0.005;
-const INFO_CELL_MARGIN = 0.005;
-const INFO_CELL_SCALE = 1;
-const INFO_CELL_TEXT_HEIGHT = 0.02;
-
-const EQUIPMENT_ITEMS = ['Helmet', 'Armor', 'Weapon', 'Ring'];
-const EQUIPMENT_CELL_WIDTH = 0.3;
-const EQUIPMENT_CELL_HEIGHT = 0.1;
-const EQUIPMENT_CELL_DEPTH = 0.005;
-const EQUIPMENT_CELL_MARGIN = 0.005;
-const EQUIPMENT_CELL_SCALE = 1;
-const EQUIPMENT_CELL_TEXT_HEIGHT = 0.02;
-
-const EQUIPMENT_PLANE_WIDTH = 0.1;
-const EQUIPMENT_PLANE_HEIGHT = 0.1;
-
-const STATS_CELL_WIDTH = EQUIPMENT_CELL_WIDTH;
-const STATS_CELL_HEIGHT = 0.1;
-const STATS_CELL_DEPTH = 0.005;
-const STATS_CELL_MARGIN = 0.005;
-const STATS_CELL_SCALE = 1;
-const STATS_CELL_TEXT_HEIGHT = 0.02;
-
-// Shop
-const SHOP_DIMENSIONS = new Vector2(3,4);
-const SHOP_CONTROL_ITEMS = ['Prev', 'Next', 'Buy', 'Back'];
-const SHOP_CONTROL_CELL_WIDTH = 0.066
-const SHOP_CONTROL_CELL_HEIGHT = 0.05;
-const SHOP_CONTROL_CELL_DEPTH = 0.005;
-const SHOP_CONTROL_CELL_MARGIN = 0.005;
-const SHOP_CONTROL_CELL_SCALE = 1;
-const SHOP_CONTROL_CELL_TEXT_HEIGHT = 0.02;
-
-const SHOP_INVENTORY_CONTROL_ITEMS = ['Prev', 'Next', 'Sell'];
-const SHOP_INVENTORY_CONTROL_CELL_WIDTH = 0.066
-const SHOP_INVENTORY_CONTROL_CELL_HEIGHT = 0.05;
-const SHOP_INVENTORY_CONTROL_CELL_DEPTH = 0.005;
-const SHOP_INVENTORY_CONTROL_CELL_MARGIN = 0.005;
-const SHOP_INVENTORY_CONTROL_CELL_SCALE = 1;
-const SHOP_INVENTORY_CONTROL_CELL_TEXT_HEIGHT = 0.02;
-
-const SHOP_CELL_WIDTH = 0.1;
-const SHOP_CELL_HEIGHT = 0.1;
-const SHOP_CELL_DEPTH = 0.005;
-const SHOP_CELL_MARGIN = 0.005;
-const SHOP_CELL_SCALE = 1;
-const SHOP_PLANE_WIDTH = 0.1;
-const SHOP_PLANE_HEIGHT = 0.1;
-
-const SHOP_INFO_PANEL_PLACEHOLDER = 'Click on item for details';
-const SHOP_INFO_CELL_HEIGHT = 0.1;
-const SHOP_INFO_CELL_DEPTH = 0.005;
-const SHOP_INFO_CELL_MARGIN = 0.005;
-const SHOP_INFO_CELL_SCALE = 1;
-const SHOP_INFO_CELL_TEXT_HEIGHT = 0.02;
-
-// Tools
-const TOOLS_MENU_CELL_WIDTH = 0.4;
-const TOOLS_MENU_CELL_HEIGHT = 0.1;
-const TOOLS_MENU_CELL_DEPTH = 0.005;
-const TOOLS_MENU_CELL_MARGIN = 0.005;
-const TOOLS_MENU_CELL_SCALE = 1;
-
-const TOOLS_MENU_ITEMS = ['Soundboard', 'Bad Dad Jokes', 'Text To Speech', 'Mirror', 'Back'];
 
 interface playSoundOptions{
     rolloffStartDistance?: number;
     volume?: number;
-}
-
-type ObjectDescriptor = {
-    thumbnailUri: string;
-    resourceId: string;
-    attachPoint: string;
-    scale?: {
-        x: number;
-        y: number;
-        z: number;
-    };
-    rotation?: {
-        x: number;
-        y: number;
-        z: number;
-    };
-    position?: {
-        x: number;
-        y: number;
-        z: number;
-    };
-};
-
-// game related data structures.
-export interface ItemDescriptor {
-    id: number,
-    name: string,
-    type: string,
-    attack?: number,
-    defense?: number,
-    count?: number
-    cost?: number,
-    obj?: ObjectDescriptor
 }
 
 type UserStats = {
@@ -169,413 +30,76 @@ type UserStats = {
     coins: number
 }
 
-class MainMenu extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'main_menu') { return; }
-
-        let row = coord.x;
-        switch(row){
-            case MAIN_MENU_ITEMS.indexOf('Inventory'):
-                this.app.switchScene('inventory_menu');
-                break;
-            case MAIN_MENU_ITEMS.indexOf('Shop'):
-                let w = this.app.shop.getMenuSize().width + this.app.shopControl.getMenuSize().width;
-                this.app.inventory.offsetMenu({x: w + SHOP_CELL_MARGIN*2, y: 0});
-                this.app.info.offsetMenu({x: w + SHOP_CELL_MARGIN*2, y: 0});
-                this.app.switchScene('shop_menu');
-                break;
-            case MAIN_MENU_ITEMS.indexOf('Settings'):
-                break;
-        }
-    }
-}
-
-class MainMenuControlStrip extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'main_menu') { return; }
-        let col = coord.y;
-        switch(col){
-            case MAIN_MENU_CONTROL_ITEMS.indexOf('Lock'):
-                this.highlight(coord);
-                if(this.highlighted){
-                    this.app.lockBall();
-                }else{
-                    this.app.unlockBall();
-                }
-                break;
-            case MAIN_MENU_CONTROL_ITEMS.indexOf('Detach'):
-                this.app.unEquipBall(user);
-                break;
-            case MAIN_MENU_CONTROL_ITEMS.indexOf('Tools'):
-                this.app.switchScene('tools_menu');
-                break;
-        }
-    }
-}
-
-class InventoryMenu extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'inventory_menu' && this.app.scene != 'shop_menu') { return; }
-        this.highlight(coord);
-        let index = this.app.inventory.getHighlightedIndex(this.app.inventory.coord);
-        this.app.updateInventoryItemDescription(index);
-    }
-}
-
-class ControlMenu extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'inventory_menu') { return; }
-
-        let row = coord.x;
-        switch(row){
-            case INVENTORY_CONTROL_ITEMS.indexOf('Next'):
-                break;
-            case INVENTORY_CONTROL_ITEMS.indexOf('Prev'):
-                break;
-            case INVENTORY_CONTROL_ITEMS.indexOf('Equip'):
-                if (this.app.inventory.highlighted){
-                    let index = this.app.inventory.getHighlightedIndex(this.app.inventory.coord);
-                    this.app.equipItem(index, user);
-                    this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
-                    this.app.updateMenuPage( this.app.equipment, this.app._userEquipments, this.app.getItemDescription );
-                }
-                break;
-            case INVENTORY_CONTROL_ITEMS.indexOf('Remove'):
-                if (this.app.inventory.highlighted){
-                    let index = this.app.equipment.getHighlightedIndex(this.app.equipment.coord);
-                    this.app.removeItem(index);
-                    this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
-                    this.app.updateMenuPage( this.app.equipment, this.app._userEquipments, this.app.getItemDescription );
-                }
-                break;
-            case INVENTORY_CONTROL_ITEMS.indexOf('Back'):
-                this.app.switchScene('main_menu');
-                break;
-        }
-    }
-}
-
-class InfoPanel extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){}
-}
-
-class EquipmentMenu extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'inventory_menu') { return; }
-        this.highlight(coord);
-    }
-}
-
-class ShopMenu extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'shop_menu') { return; }
-        this.highlight(coord);
-        let index = this.app.shop.getHighlightedIndex(this.app.shop.coord);
-        this.app.updateShopItemDescription(index);
-    }
-}
-
-class ShopMenuInfoPanel extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'shop_menu') { return; }
-    }
-}
-
-class ShopMenuControlStrip extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'shop_menu') { return; }
-        let row = coord.x;
-        switch(row){
-            case SHOP_CONTROL_ITEMS.indexOf('Prev'):
-                this.app.shop.decrementPageNum();
-                this.app.updateMenuPage( this.app.shop, this.app.getShopPageData() );
-                break;
-            case SHOP_CONTROL_ITEMS.indexOf('Next'):
-                this.app.shop.incrementPageNum(this.app.itemDatabaseLength);
-                this.app.updateMenuPage( this.app.shop, this.app.getShopPageData() );
-                break;
-            case SHOP_CONTROL_ITEMS.indexOf('Buy'):
-                if (this.app.shop.highlighted){
-                    let index = this.app.shop.getHighlightedIndex(this.app.shop.coord);
-                    this.app.buyItem(index);
-                    this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
-                }
-                break;
-            case SHOP_CONTROL_ITEMS.indexOf('Back'):
-                let w = this.app.shop.getMenuSize().width + this.app.shopControl.getMenuSize().width;
-                this.app.inventory.offsetMenu({x: -(w + SHOP_CELL_MARGIN*2), y: 0});
-                this.app.info.offsetMenu({x: -(w + SHOP_CELL_MARGIN*2), y: 0});
-                this.app.switchScene('main_menu');
-                break;
-        }
-    }
-}
-
-class ShopInventoryControlStrip extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'shop_menu') { return; }
-        let row = coord.x;
-        switch(row){
-            case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Prev'):
-                this.app.inventory.decrementPageNum();
-                this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData() );
-                break;
-            case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Next'):
-                this.app.inventory.incrementPageNum(this.app.userItemsLength);
-                this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData() );
-                break;
-            case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Sell'):
-                if (this.app.shop.highlighted){
-                    let index = this.app.inventory.getHighlightedIndex(this.app.inventory.coord);
-                    this.app.sellItem(index);
-                    this.app.updateMenuPage( this.app.inventory, this.app.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
-                }
-                break;
-        }
-    }
-}
-
-class ToolsMenu extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){
-        if (this.app.scene != 'tools_menu') return;
-        let row = coord.x;
-        switch(row){
-            case TOOLS_MENU_ITEMS.indexOf('Soundboard'):
-                break;
-            case TOOLS_MENU_ITEMS.indexOf('Bad Dad Jokes'):
-                break;
-            case TOOLS_MENU_ITEMS.indexOf('Text To Speech'):
-                user.prompt("Text To Speech", true).then((dialog) => {
-                    if (dialog.submitted) {
-                        this.app.tts(dialog.text);
-                    }
-                });
-                break;
-            case TOOLS_MENU_ITEMS.indexOf('Mirror'):
-                this.highlight(coord);
-                break;
-            case TOOLS_MENU_ITEMS.indexOf('Back'):
-                this.app.switchScene('main_menu');
-                break;
-        }
-    }
-}
-
-class UserStatsPanel extends GridMenu{
-    onItemClick(coord: Vector2, name: string, user: MRE.User){}
-}
+const EQUIPMENT_ITEMS = ['Helmet', 'Armor', 'Weapon', 'Ring'];
 
 /**
  * The main class of this app. All the logic goes here.
  */
-export class Inventory {
-
+export class AltRPG {
     private context: MRE.Context;
     private baseUrl: string;
     private assets: MRE.AssetContainer;
 
-    ////////////////
-    //// main menu
-    private mainMenuMeshId: MRE.Guid;
-    private mainMenuDefaultMaterialId: MRE.Guid;
-    private mainMenuHighlightMeshId: MRE.Guid;
-    private mainMenuHighlightMaterialId: MRE.Guid;
-
-    private mainMenuControlMeshId: MRE.Guid;
-    private mainMenuControlDefaultMaterialId: MRE.Guid;
-    private mainMenuControlHighlightMeshId: MRE.Guid;
-    private mainMenuControlHighlightMaterialId: MRE.Guid;
-
-    // inventory menu
-    private meshId: MRE.Guid;
-    private defaultMaterialId: MRE.Guid;
-    private highlightMeshId: MRE.Guid;
-    private highlightMaterialId: MRE.Guid;
-    private planeMeshId: MRE.Guid;
-
-    private controlMeshId: MRE.Guid;
-    private controlDefaultMaterialId: MRE.Guid;
-    private controlHighlightMeshId: MRE.Guid;
-    private controlHighlightMaterialId: MRE.Guid;
-
-    private infoPanelMeshId: MRE.Guid;
-    private infoPanelMaterialId: MRE.Guid;
-
-    private equipmentMenuMeshId: MRE.Guid;
-    private equipmentMenuMaterialId: MRE.Guid;
-    private equipmentMenuHighlightMeshId: MRE.Guid;
-    private equipmentMenuHighlightMaterialId: MRE.Guid;
-    private equipmentMenuPlaneMeshId: MRE.Guid;
-    
-    private userStatsMeshId: MRE.Guid;
-    private userStatsMaterialId: MRE.Guid;
-
-    // shop menu
-    private shopMenuMeshId: MRE.Guid;
-    private shopMenuDefaultMaterialId: MRE.Guid;
-    private shopMenuHighlightMeshId: MRE.Guid;
-    private shopMenuHighlightMaterialId: MRE.Guid;
-    private shopMenuPlaneMeshId: MRE.Guid;
-
-    private shopMenuInfoPanelMeshId: MRE.Guid;
-    private shopMenuInfoPanelMaterialId: MRE.Guid;
-
-    private shopMenuControlMeshId: MRE.Guid;
-    private shopMenuControlDefaultMaterialId: MRE.Guid;
-    private shopMenuControlHighlightMeshId: MRE.Guid;
-    private shopMenuControlHighlightMaterialId: MRE.Guid;
-
-    private shopInventoryControlMeshId: MRE.Guid;
-    private shopInventoryControlDefaultMaterialId: MRE.Guid;
-    private shopInventoryControlHighlightMeshId: MRE.Guid;
-    private shopInventoryControlHighlightMaterialId: MRE.Guid;
-
-    // tools menu
-    private toolsMenuMeshId: MRE.Guid;
-    private toolsMenuDefaultMaterialId: MRE.Guid;
-    private toolsMenuHighlightMeshId: MRE.Guid;
-    private toolsMenuHighlightMaterialId: MRE.Guid;
-
+    // global assets
     private joinedSound: MRE.Sound;
     private leftSound: MRE.Sound;
-
     private defaultPlaneMaterial: MRE.Material;
+    // texture cache
+    private textures: Map<string, MRE.Texture>;
+    private materials: Map<string, MRE.Material>;
 
 
-    ////////////////
-    //// logic
+    // ball
     private ball: Button;
     private root: MRE.Actor;
 
-    // main menu
-    private mainMenu: MainMenu;
-    private mainMenuControlStrip: MainMenuControlStrip;
+    // main_menu scene
+    private mainMenu: GridMenu;
+    private mainMenuControlStrip: GridMenu;
 
-    // inventory menu
-    private inventoryMenu: InventoryMenu;
-    private inventoryControlStrip: ControlMenu;
-    private infoPanel: InfoPanel;
-    private equipmentMenu: EquipmentMenu;
-    private userStatsPanel: UserStatsPanel;
+    // inventory_menu scene
+    private inventoryMenu: GridMenu;
+    private inventoryControlStrip: GridMenu;
+    private infoPanel: GridMenu;
+    private equipmentMenu: GridMenu;
+    private userStatsPanel: GridMenu;
 
-    // shop menu
-    private shopMenu: ShopMenu;
-    private shopMenuInfoPanel: ShopMenuInfoPanel;
-    private shopMenuControlStrip: ShopMenuControlStrip;
-    private shopInventoryControlStrip: ShopInventoryControlStrip;
+    // shop_menu scene
+    private shopMenu: GridMenu;
+    private shopMenuInfoPanel: GridMenu;
+    private shopMenuControlStrip: GridMenu;
+    private shopInventoryControlStrip: GridMenu;
 
-    // tools menu
-    private toolsMenu: ToolsMenu;
+    // tools_menu scene
+    private toolsMenu: GridMenu;
 
-    // states
+    // scene states
     private scenes: Array<[string, GridMenu[]]> = [];
     private currentScene: string = '#';
     private prevScene: string = 'main_menu';
 
-    // data
+    // game data
     private itemDatabase: ItemDescriptor[];
     private userItems: ItemDescriptor[];
     private userEquipments: ItemDescriptor[];
     private itemIdToItem: Map<number, ItemDescriptor> = new Map<number, ItemDescriptor>();
-
     private equippedItems: Map<number, MRE.Actor> = new Map<number, MRE.Actor>();
-
     private userStats: UserStats;
-
-    // get
-    get scene() { return this.currentScene; }
-    get info() { return this.infoPanel; }
-    get inventory() { return this.inventoryMenu; }
-    get shop() { return this.shopMenu; }
-    get equipment() { return this.equipmentMenu; }
-    get _userEquipments() { return this.userEquipments; }
-    get shopControl() { return this.shopMenuControlStrip; }
-    get url() { return this.baseUrl; }
-    get itemDatabaseLength() { return this.itemDatabase.length; }
-    get userItemsLength() { return this.userItems.length; }
-    public textures: Map<string, MRE.Texture>;
-    public materials: Map<string, MRE.Material>;
 
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
         this.context = _context;
         this.baseUrl = _baseUrl;
         this.assets = new MRE.AssetContainer(this.context);
+
+        // repetition check for texture reuse
         this.textures = new Map<string, MRE.Texture>();
         this.materials = new Map<string, MRE.Material>();
 
-        // mainmenu button
-        this.mainMenuMeshId = this.assets.createBoxMesh('main_menu_btn_mesh', MAIN_MENU_CELL_WIDTH, MAIN_MENU_CELL_HEIGHT, MAIN_MENU_CELL_DEPTH).id;
-        this.mainMenuDefaultMaterialId = this.assets.createMaterial('main_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
-        this.mainMenuHighlightMeshId = this.assets.createBoxMesh('main_menu_highlight_mesh', MAIN_MENU_CELL_WIDTH+MAIN_MENU_CELL_MARGIN, MAIN_MENU_CELL_HEIGHT+MAIN_MENU_CELL_MARGIN, CELL_DEPTH/2).id;
-        this.mainMenuHighlightMaterialId = this.assets.createMaterial('main_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
-
-        // mainmenu control
-        this.mainMenuControlMeshId = this.assets.createBoxMesh('main_menu_control_btn_mesh', MAIN_MENU_CONTROL_CELL_WIDTH, MAIN_MENU_CONTROL_CELL_HEIGHT, MAIN_MENU_CONTROL_CELL_DEPTH).id;
-        this.mainMenuControlDefaultMaterialId = this.assets.createMaterial('main_menu_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
-        this.mainMenuControlHighlightMeshId = this.assets.createBoxMesh('main_menu_control_highlight_mesh', MAIN_MENU_CONTROL_CELL_WIDTH+MAIN_MENU_CONTROL_CELL_MARGIN, MAIN_MENU_CONTROL_CELL_HEIGHT+MAIN_MENU_CONTROL_CELL_MARGIN, MAIN_MENU_CONTROL_CELL_DEPTH/2).id;
-        this.mainMenuControlHighlightMaterialId = this.assets.createMaterial('main_menu_control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
-
-        // inventory button
-        this.meshId = this.assets.createBoxMesh('btn_mesh', CELL_WIDTH, CELL_HEIGHT, CELL_DEPTH).id;
-        this.defaultMaterialId = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.LightGray() }).id;
-        this.highlightMeshId = this.assets.createBoxMesh('highlight_mesh', CELL_WIDTH+CELL_MARGIN, CELL_HEIGHT+CELL_MARGIN, CELL_DEPTH/2).id;
-        this.highlightMaterialId = this.assets.createMaterial('highlight_btn_material', { color: MRE.Color3.Red() }).id;
-
-        // inventory plane
-        this.defaultPlaneMaterial = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.DarkGray() });
-        this.planeMeshId = this.assets.createPlaneMesh('plane_mesh', CELL_WIDTH, CELL_HEIGHT).id;
-
-        // inventory control
-        this.controlMeshId = this.assets.createBoxMesh('control_btn_mesh', CONTROL_CELL_WIDTH, CONTROL_CELL_HEIGHT, CONTROL_CELL_DEPTH).id;
-        this.controlDefaultMaterialId = this.assets.createMaterial('control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
-        this.controlHighlightMeshId = this.assets.createBoxMesh('control_highlight_mesh', CONTROL_CELL_WIDTH+CONTROL_CELL_MARGIN, CONTROL_CELL_HEIGHT+CONTROL_CELL_MARGIN, CONTROL_CELL_DEPTH/2).id;
-        this.controlHighlightMaterialId = this.assets.createMaterial('control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
-
-        // info panel
-        this.infoPanelMaterialId = this.assets.createMaterial('info_panel_material', { color: MRE.Color3.LightGray() }).id;;
-
-        // inventory equipment
-        this.equipmentMenuMeshId = this.assets.createBoxMesh('equipment_menu_btn_mesh', EQUIPMENT_CELL_WIDTH, EQUIPMENT_CELL_HEIGHT, EQUIPMENT_CELL_DEPTH).id;
-        this.equipmentMenuMaterialId = this.assets.createMaterial('equipment_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
-        this.equipmentMenuHighlightMeshId = this.assets.createBoxMesh('equipment_menu_highlight_mesh', EQUIPMENT_CELL_WIDTH+EQUIPMENT_CELL_MARGIN, EQUIPMENT_CELL_HEIGHT+EQUIPMENT_CELL_MARGIN, EQUIPMENT_CELL_DEPTH/2).id;
-        this.equipmentMenuHighlightMaterialId = this.assets.createMaterial('equipment_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
-        this.equipmentMenuPlaneMeshId = this.assets.createPlaneMesh('equipment_menu_plane_mesh', EQUIPMENT_PLANE_WIDTH, EQUIPMENT_PLANE_HEIGHT).id;
-
-        // user stats panel
-        this.userStatsMeshId = this.assets.createBoxMesh('user_stats_btn_mesh', STATS_CELL_WIDTH, STATS_CELL_HEIGHT, STATS_CELL_DEPTH).id;
-        this.userStatsMaterialId = this.assets.createMaterial('user_stats_material', { color: MRE.Color3.LightGray() }).id;;
-
-        // shop menu
-        this.shopMenuMeshId = this.assets.createBoxMesh('shop_menu_btn_mesh', SHOP_CELL_WIDTH, SHOP_CELL_HEIGHT, SHOP_CELL_DEPTH).id;
-        this.shopMenuDefaultMaterialId = this.assets.createMaterial('shop_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
-        this.shopMenuHighlightMeshId = this.assets.createBoxMesh('shop_menu_highlight_mesh', SHOP_CELL_WIDTH+SHOP_CELL_MARGIN, SHOP_CELL_HEIGHT+SHOP_CELL_MARGIN, SHOP_CELL_DEPTH/2).id;
-        this.shopMenuHighlightMaterialId = this.assets.createMaterial('shop_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
-        this.shopMenuPlaneMeshId = this.assets.createPlaneMesh('shop_menu_plane_mesh', SHOP_PLANE_WIDTH, SHOP_PLANE_HEIGHT).id;
-        
-        this.shopMenuInfoPanelMaterialId = this.assets.createMaterial('shop_menu_info_panel_material', { color: MRE.Color3.LightGray() }).id;
-
-        this.shopMenuControlMeshId = this.assets.createBoxMesh('shop_menu_control_btn_mesh', SHOP_CONTROL_CELL_WIDTH, SHOP_CONTROL_CELL_HEIGHT, SHOP_CONTROL_CELL_DEPTH).id;
-        this.shopMenuControlDefaultMaterialId = this.assets.createMaterial('shop_menu_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
-        this.shopMenuControlHighlightMeshId = this.assets.createBoxMesh('shop_menu_control_highlight_mesh', SHOP_CONTROL_CELL_WIDTH+SHOP_CONTROL_CELL_MARGIN, SHOP_CONTROL_CELL_HEIGHT+SHOP_CONTROL_CELL_MARGIN, SHOP_CONTROL_CELL_DEPTH/2).id;
-        this.shopMenuControlHighlightMaterialId = this.assets.createMaterial('shop_menu_control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
-
-        this.shopInventoryControlMeshId = this.assets.createBoxMesh('shop_inventory_control_btn_mesh', SHOP_INVENTORY_CONTROL_CELL_WIDTH, SHOP_INVENTORY_CONTROL_CELL_HEIGHT, SHOP_INVENTORY_CONTROL_CELL_DEPTH).id;
-        this.shopInventoryControlDefaultMaterialId = this.assets.createMaterial('shop_inventory_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
-        this.shopInventoryControlHighlightMeshId = this.assets.createBoxMesh('shop_inventory_control_highlight_mesh', SHOP_INVENTORY_CONTROL_CELL_WIDTH+SHOP_INVENTORY_CONTROL_CELL_MARGIN, SHOP_INVENTORY_CONTROL_CELL_HEIGHT+SHOP_INVENTORY_CONTROL_CELL_MARGIN, SHOP_INVENTORY_CONTROL_CELL_DEPTH/2).id;
-        this.shopInventoryControlHighlightMaterialId = this.assets.createMaterial('shop_inventory_control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
-
-        // tools menu button
-        this.toolsMenuMeshId = this.assets.createBoxMesh('tools_menu_btn_mesh', TOOLS_MENU_CELL_WIDTH, TOOLS_MENU_CELL_HEIGHT, TOOLS_MENU_CELL_DEPTH).id;
-        this.toolsMenuDefaultMaterialId = this.assets.createMaterial('tools_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
-        this.toolsMenuHighlightMeshId = this.assets.createBoxMesh('tools_menu_highlight_mesh', TOOLS_MENU_CELL_WIDTH+TOOLS_MENU_CELL_MARGIN, TOOLS_MENU_CELL_HEIGHT+TOOLS_MENU_CELL_MARGIN, CELL_DEPTH/2).id;
-        this.toolsMenuHighlightMaterialId = this.assets.createMaterial('tools_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
-
-        // sounds
-        this.joinedSound = this.assets.createSound('joined', { uri: `${this.baseUrl}/joined.ogg` });
-        this.leftSound = this.assets.createSound('left', { uri: `${this.baseUrl}/left.ogg` });
-
+        // init
         this.context.onStarted(() => this.init());
+
+        // user join & left
         this.context.onUserJoined(user => this.userJoined(user));
         this.context.onUserLeft(user => this.userLeft(user));
 	}
@@ -587,14 +111,18 @@ export class Inventory {
         // data
         this.loadData();
 
+        // sounds & default plane material for menus
+        this.loadSounds();
+        this.defaultPlaneMaterial = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.DarkGray() });
+
         // ball        
         this.createBall();
 
-        // main menu
+        // menus for main_menu scene
         this.createMainMenu();
         this.createMainMenuControlStrip();
 
-        // inventory menu
+        // menus for inventory_menu scene
         this.createInventoryMenu();
         this.createInventoryMenuControlStrip();
         this.createInfoPanel();
@@ -603,14 +131,14 @@ export class Inventory {
         this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d:ItemDescriptor) => d.count.toString() );
         this.updateMenuPage( this.equipmentMenu, this.userEquipments, (d:ItemDescriptor) => d.type );
 
-        // shop menu
+        // menus for shop_menu scene
         this.createShopMenu();
         this.createShopMenuInfoPanel();
         this.createShopMenuControlStrip();
         this.createShopInventoryControlStrip();
         this.updateMenuPage( this.shopMenu, this.getShopPageData() );
 
-        // tools menu
+        // menus for tools_menu scene
         this.createToolsMenu();
 
         // scenes
@@ -619,34 +147,46 @@ export class Inventory {
         this.scenes.push(['shop_menu', [this.shopMenu, this.shopMenuControlStrip, this.shopMenuInfoPanel, this.inventoryMenu, this.shopInventoryControlStrip, this.infoPanel ]]);
         this.scenes.push(['tools_menu', [this.toolsMenu]]);
 
-        this.switchScene(''); // start from main menu
+        // hide menus on game start up
+        this.switchScene('');
+    }
+
+    private loadSounds(){
+        // sounds
+        this.joinedSound = this.assets.createSound('joined', { uri: `${this.baseUrl}/joined.ogg` });
+        this.leftSound = this.assets.createSound('left', { uri: `${this.baseUrl}/left.ogg` });
     }
 
     private userJoined(user: MRE.User){
-        this.playSound(this.joinedSound, {});
+        const JOINED_SOUND_DURATION = 4860;
+        const DELAY_BETWEEN_SOUNDS = 100;
+
+        this.playSoundWithBall(this.joinedSound, {});
         setTimeout(() => {
-            this.greet(user);
+            greet(user);
         }, JOINED_SOUND_DURATION + DELAY_BETWEEN_SOUNDS);
     }
 
     private userLeft(user: MRE.User){
-        if (this.checkUserName(user,OWNER_NAME)){
-            this.ball._button.detach();
+        const LEFT_SOUND_DURATION = 3200;
+        const DELAY_BETWEEN_SOUNDS = 100;
+        if (checkUserName(user, OWNER_NAME)){
+            if (this.ball._button.attachment !== undefined) this.ball._button.detach();
         }
-        this.playSound(this.leftSound, {});
+        this.playSoundWithBall(this.leftSound, {});
         setTimeout(() => {
-            this.bye(user);
+            bye(user);
         }, LEFT_SOUND_DURATION + DELAY_BETWEEN_SOUNDS);
     }
 
     //////////////
     //// scenes
-    public switchScene(scene: string){
+    private switchScene(scene: string){
         if (this.currentScene == scene){
             return;
         }
         // default scene
-        if (!this.scene.length && !this.scenes.map(e=>e[0]).includes(scene)) {
+        if (!this.currentScene.length && !this.scenes.map(e=>e[0]).includes(scene)) {
             scene = 'main_menu';
         }
         this.currentScene = scene;
@@ -669,6 +209,27 @@ export class Inventory {
         })
     }
 
+    ////////////////////
+    //// material
+    private loadMaterial(name: string, uri: string){
+        let texture;
+        if (!this.textures.has('texture_'+name)){
+            texture = this.assets.createTexture('texture_'+name, {uri});
+            this.textures.set('texture_'+name, texture);
+        }else{
+            texture = this.textures.get('texture_'+name);
+        }
+
+        let material;
+        if(!this.materials.has('material_'+name)){
+            material = this.assets.createMaterial('material_'+name, { mainTextureId: texture.id });
+            this.materials.set('material_'+name, material);
+        }else{
+            material = this.materials.get('material_'+name);
+        }
+        return material;
+    }
+
     /////////////////
     //// data
     private loadData(){
@@ -688,28 +249,7 @@ export class Inventory {
         }
     }
 
-    public updateShopItemDescription(index: number){
-        let item = this.itemDatabase[index];
-        if (item === undefined) {return}
-        let stat = (item.attack !== undefined) ? `attack: ${item.attack}` : `defense: ${item.defense}`
-        let desc = 
-       `
-       name: ${item.name}
-       cost: ${item.cost}
-       ${stat}
-       `;
-        this.shopMenuInfoPanel.updateData([[{text: desc}]]);
-    }
-
-    public updateInventoryItemDescription(index: number){
-        let item = this.userItems[index];
-        if (item === undefined) {return}
-
-        let desc = this.getItemDescription(item);
-        this.infoPanel.updateData([[{text: desc}]]);
-    }
-
-    public getItemDescription(item: ItemDescriptor){
+    private getItemDescription(item: ItemDescriptor){
         if (item.id == 0){ return item.type }
         let stat = (item.attack !== undefined) ? `attack: ${item.attack}` : `defense: ${item.defense}`
         let desc = 
@@ -720,45 +260,17 @@ export class Inventory {
        return desc;
     }
 
-    public getShopPageData(){
-        let pageSize = SHOP_DIMENSIONS.x * SHOP_DIMENSIONS.y;
+    private getShopPageData(){
+        let pageSize = this.shopMenu.row * this.shopMenu.col;
         return this.itemDatabase.slice(pageSize*(this.shopMenu.curPageNum-1), pageSize*this.shopMenu.curPageNum);
     }
 
-    public getInventoryPageData(){
-        let pageSize = INVENTORY_DIMENSIONS.x * INVENTORY_DIMENSIONS.y;
+    private getInventoryPageData(){
+        let pageSize = this.inventoryMenu.row * this.inventoryMenu.col;
         return this.userItems.slice(pageSize*(this.inventoryMenu.curPageNum-1), pageSize*this.inventoryMenu.curPageNum);
     }
 
-    public updateMenuPage(menu: GridMenu, pageData: ItemDescriptor[], desc?: (d: ItemDescriptor, i?: number) => string){
-        let f = (desc !== undefined) ? desc : (d:ItemDescriptor)=>d.name;
-        let data = pageData.map(d => ({
-            text: f(d),
-            material: (d.obj !== undefined) ? this.loadMaterial(d.name, d.obj.thumbnailUri) : this.defaultPlaneMaterial
-        }));
-        menu.updateData(menu.reshape(data));
-    }
-
-    public loadMaterial(name: string, uri: string){
-        let texture;
-        if (!this.textures.has('texture_'+name)){
-            texture = this.assets.createTexture('texture_'+name, {uri});
-            this.textures.set('texture_'+name, texture);
-        }else{
-            texture = this.textures.get('texture_'+name);
-        }
-
-        let material;
-        if(!this.materials.has('material_'+name)){
-            material = this.assets.createMaterial('material_'+name, { mainTextureId: texture.id });
-            this.materials.set('material_'+name, material);
-        }else{
-            material = this.materials.get('material_'+name);
-        }
-        return material;
-    }
-
-    public addItemToInventory(item: ItemDescriptor){
+    private addItemToInventory(item: ItemDescriptor){
         if (!this.itemIdToItem.has(item.id)){
             let it = cloneDeep(item)
             this.userItems.push(it);
@@ -768,19 +280,7 @@ export class Inventory {
         }
     }
 
-    public buyItem(index: number){
-        let item = this.itemDatabase[index];
-        if (item === undefined) {return}
-        if (this.userStats.coins < item.cost){
-            this.shopMenuInfoPanel.updateData([[{text: 'Insufficient funds'}]]);
-        } else {
-            this.userStats.coins -= item.cost;
-            this.addItemToInventory(item);
-            this.shopMenuInfoPanel.updateData([[{text: `${item.name} added`}]]);
-        }
-    }
-
-    public removeItemFromInventory(index: number){
+    private removeItemFromInventory(index: number){
         let item = this.userItems[index];
         if (item === undefined) {return}
         item.count -= 1;
@@ -791,12 +291,56 @@ export class Inventory {
         return item;
     }
 
-    public sellItem(index: number){
+    ////////////////////
+    // actions
+    private updateShopItemDescription(index: number){
+        let item = this.itemDatabase[index];
+        if (item === undefined) {return}
+        let stat = (item.attack !== undefined) ? `attack: ${item.attack}` : `defense: ${item.defense}`
+        let desc = 
+       `
+       name: ${item.name}
+       cost: ${item.cost}
+       ${stat}
+       `;
+        this.shopMenuInfoPanel.updateCells([[{text: desc}]]);
+    }
+
+    private updateInventoryItemDescription(index: number){
+        let item = this.userItems[index];
+        if (item === undefined) {return}
+
+        let desc = this.getItemDescription(item);
+        this.infoPanel.updateCells([[{text: desc}]]);
+    }
+
+    private updateMenuPage(menu: GridMenu, pageData: ItemDescriptor[], desc?: (d: ItemDescriptor, i?: number) => string){
+        let f = (desc !== undefined) ? desc : (d:ItemDescriptor)=>d.name;
+        let data = pageData.map(d => ({
+            text: f(d),
+            material: (d.obj !== undefined) ? this.loadMaterial(d.name, d.obj.thumbnailUri) : this.defaultPlaneMaterial
+        }));
+        menu.updateCells(menu.reshape(data));
+    }
+
+    private buyItem(index: number){
+        let item = this.itemDatabase[index];
+        if (item === undefined) {return}
+        if (this.userStats.coins < item.cost){
+            this.shopMenuInfoPanel.updateCells([[{text: 'Insufficient funds'}]]);
+        } else {
+            this.userStats.coins -= item.cost;
+            this.addItemToInventory(item);
+            this.shopMenuInfoPanel.updateCells([[{text: `${item.name} added`}]]);
+        }
+    }
+
+    private sellItem(index: number){
         let item = this.removeItemFromInventory(index);
         if (item) this.userStats.coins += item.cost;
     }
 
-    public equipItem(index: number, user: MRE.User){
+    private equipItem(index: number, user: MRE.User){
         let item = cloneDeep(this.removeItemFromInventory(index));
         if (item) {
             let i = EQUIPMENT_ITEMS.indexOf(item.type);
@@ -815,7 +359,7 @@ export class Inventory {
         }
     }
 
-    public removeItem(index: number){
+    private removeItem(index: number){
         let item = this.userEquipments[index];
         if (item === undefined || item.id == 0) { return; }
         this.addItemToInventory(item);
@@ -829,7 +373,7 @@ export class Inventory {
         this.stripEquipment(item);
     }
 
-    public wearEquipment(item: ItemDescriptor, user: MRE.User){
+    private wearEquipment(item: ItemDescriptor, user: MRE.User){
         const position = item.obj.position ? item.obj.position : { x: 0, y: 0.5, z: 0 }
         const scale = item.obj.scale ? item.obj.scale : { x: 0.5, y: 0.5, z: 0.5 }
         const rotation = item.obj.rotation ? item.obj.rotation : { x: 0, y: 180, z: 0 }
@@ -854,7 +398,7 @@ export class Inventory {
         this.equippedItems.set(item.id, actor);
     }
 
-    public stripEquipment(item: ItemDescriptor){
+    private stripEquipment(item: ItemDescriptor){
         if (this.equippedItems.has(item.id)){
             let actor = this.equippedItems.get(item.id).destroy();
             this.equippedItems.delete(item.id);
@@ -882,14 +426,9 @@ export class Inventory {
             },
         });
         this.ball.addBehavior((user,__) => {
-            if (this.checkUserName(user, OWNER_NAME)){
+            if (checkUserName(user, OWNER_NAME)){
                 this.toggleMenu();
             }else{
-                user.prompt("Text To Speech", true).then((dialog) => {
-                    if (dialog.submitted) {
-                        this.tts(dialog.text);
-                    }
-                });
             }
         });
         
@@ -897,13 +436,24 @@ export class Inventory {
         let button = this.ball._button;
         button.grabbable = true;
         button.onGrab('end', (user)=>{
-            if (this.checkUserName(user, OWNER_NAME)) {
+            if (checkUserName(user, OWNER_NAME)) {
                 this.equipBall(user);
             }
         });
     }
 
-    private playSound(musicAsset: MRE.Sound, options?: playSoundOptions){
+    private async textToSpeech(text: string){
+        let fileName = sha256(text) + '.wav';
+        let filePath = path.join(__dirname, '../public/', fileName);
+        let o = await tts(text);
+        fs.writeFile(filePath, Buffer.from(o), (err) => {
+            if(err){ console.log(err);}
+            const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
+            this.playSoundWithBall(sound, {});
+        });
+    }
+
+    private playSoundWithBall(musicAsset: MRE.Sound, options?: playSoundOptions){
         let volume = (options.volume == undefined) ? 0.7 : options.volume;
         let rolloffStartDistance = (options.rolloffStartDistance == undefined) ? 15 : options.rolloffStartDistance;
         this.ball._button.startSound(musicAsset.id, {
@@ -917,133 +467,259 @@ export class Inventory {
         this.ball._button.attach(user, 'left-hand');
     }
 
-    public unEquipBall(user: MRE.User){
-        this.ball._button.detach();
+    private unEquipBall(){
+        if (this.ball._button.attachment !== undefined) this.ball._button.detach();
     }
 
-    public lockBall(){
+    private lockBall(){
         this.ball._button.grabbable = false;
     }
 
-    public unlockBall(){
+    private unlockBall(){
         this.ball._button.grabbable = true;
     }
 
     ////////////////
     //// menus
     private createMainMenu(){
+        const MAIN_MENU_ITEMS = ['Inventory', 'Shop', 'Map', 'Settings'];
+        const MAIN_MENU_CELL_WIDTH = 0.3;
+        const MAIN_MENU_CELL_HEIGHT = 0.1;
+        const MAIN_MENU_CELL_DEPTH = 0.005;
+        const MAIN_MENU_CELL_MARGIN = 0.01;
+        const MAIN_MENU_CELL_SCALE = 1;
+
+        // mainmenu button
+        let mainMenuMeshId = this.assets.createBoxMesh('main_menu_btn_mesh', MAIN_MENU_CELL_WIDTH, MAIN_MENU_CELL_HEIGHT, MAIN_MENU_CELL_DEPTH).id;
+        let mainMenuDefaultMaterialId = this.assets.createMaterial('main_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let mainMenuHighlightMeshId = this.assets.createBoxMesh('main_menu_highlight_mesh', MAIN_MENU_CELL_WIDTH+MAIN_MENU_CELL_MARGIN, MAIN_MENU_CELL_HEIGHT+MAIN_MENU_CELL_MARGIN, MAIN_MENU_CELL_DEPTH/2).id;
+        let mainMenuHighlightMaterialId = this.assets.createMaterial('main_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+
         let data = MAIN_MENU_ITEMS.map(t => [{
             text: t
         }]);
-        this.mainMenu = new MainMenu(this.context, this, {
-            offset: {
-                x: RADIUS,
-                y: RADIUS
-            },
+        this.mainMenu = new GridMenu(this.context, {
+            // logic
+            title: 'Main Menu',
+            data,
             shape: {
                 row: MAIN_MENU_ITEMS.length,
                 col: 1
             },
-            cell: {
+            // assets
+            meshId: mainMenuMeshId,
+            defaultMaterialId: mainMenuDefaultMaterialId,
+            highlightMeshId: mainMenuHighlightMeshId,
+            highlightMaterialId: mainMenuHighlightMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS,
+                y: RADIUS
+            },
+            // dimensions
+            margin: MAIN_MENU_CELL_MARGIN,
+            box: {
                 width: MAIN_MENU_CELL_WIDTH,
                 height: MAIN_MENU_CELL_HEIGHT,
                 depth: MAIN_MENU_CELL_DEPTH,
                 scale: MAIN_MENU_CELL_SCALE
             },
-            margin: MAIN_MENU_CELL_MARGIN,
-            meshId: this.mainMenuMeshId,
-            defaultMaterialId: this.mainMenuDefaultMaterialId,
-            highlightMeshId: this.mainMenuHighlightMeshId,
-            highlightMaterialId: this.mainMenuHighlightMaterialId,
-            parentId: this.root.id,
-            title: 'Main Menu',
-            data
+        });
+
+        this.mainMenu.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'main_menu') { return; }
+
+            let row = coord.x;
+            switch(row){
+                case MAIN_MENU_ITEMS.indexOf('Inventory'):
+                    this.switchScene('inventory_menu');
+                    break;
+                case MAIN_MENU_ITEMS.indexOf('Shop'):
+                    let w = this.shopMenu.getMenuSize().width + this.shopMenuControlStrip.getMenuSize().width;
+                    this.inventoryMenu.offsetMenu({x: w + this.shopMenu.margin*2, y: 0});
+                    this.infoPanel.offsetMenu({x: w + this.shopMenu.margin*2, y: 0});
+                    this.switchScene('shop_menu');
+                    break;
+                case MAIN_MENU_ITEMS.indexOf('Settings'):
+                    break;
+            }
         });
     }
 
     private createMainMenuControlStrip(){
+        const MAIN_MENU_CONTROL_ITEMS = ['Lock', 'Detach', 'Tools'];
+        const MAIN_MENU_CONTROL_CELL_WIDTH = 0.095;
+        const MAIN_MENU_CONTROL_CELL_HEIGHT = 0.1;
+        const MAIN_MENU_CONTROL_CELL_DEPTH = 0.0005;
+        const MAIN_MENU_CONTROL_CELL_MARGIN = 0.0075;
+        const MAIN_MENU_CONTROL_CELL_SCALE = 1;
+        const MAIN_MENU_CONTROL_CELL_TEXT_HEIGHT = 0.02;
+
+        let mainMenuControlMeshId = this.assets.createBoxMesh('main_menu_control_btn_mesh', MAIN_MENU_CONTROL_CELL_WIDTH, MAIN_MENU_CONTROL_CELL_HEIGHT, MAIN_MENU_CONTROL_CELL_DEPTH).id;
+        let mainMenuControlDefaultMaterialId = this.assets.createMaterial('main_menu_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let mainMenuControlHighlightMeshId = this.assets.createBoxMesh('main_menu_control_highlight_mesh', MAIN_MENU_CONTROL_CELL_WIDTH+MAIN_MENU_CONTROL_CELL_MARGIN, MAIN_MENU_CONTROL_CELL_HEIGHT+MAIN_MENU_CONTROL_CELL_MARGIN, MAIN_MENU_CONTROL_CELL_DEPTH/2).id;
+        let mainMenuControlHighlightMaterialId = this.assets.createMaterial('main_menu_control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+
         let data = [ MAIN_MENU_CONTROL_ITEMS.map(t => ({
             text: t
         })) ];
-        this.mainMenuControlStrip = new MainMenuControlStrip(this.context, this, {
-            offset: {
-                x: RADIUS,
-                y: RADIUS - (MAIN_MENU_CONTROL_CELL_HEIGHT + MAIN_MENU_CONTROL_CELL_MARGIN)
-            },
+
+        this.mainMenuControlStrip = new GridMenu(this.context, {
+            // logic
+            data,
             shape: {
                 row: 1,
                 col: MAIN_MENU_CONTROL_ITEMS.length
             },
-            cell: {
+            // assets
+            meshId: mainMenuControlMeshId,
+            defaultMaterialId: mainMenuControlDefaultMaterialId,
+            highlightMeshId: mainMenuControlHighlightMeshId,
+            highlightMaterialId: mainMenuControlHighlightMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS,
+                y: RADIUS - (MAIN_MENU_CONTROL_CELL_HEIGHT + MAIN_MENU_CONTROL_CELL_MARGIN)
+            },
+            // dimensions
+            margin: MAIN_MENU_CONTROL_CELL_MARGIN,
+            box: {
                 width: MAIN_MENU_CONTROL_CELL_WIDTH,
                 height: MAIN_MENU_CONTROL_CELL_HEIGHT,
                 depth: MAIN_MENU_CONTROL_CELL_DEPTH,
                 scale: MAIN_MENU_CONTROL_CELL_SCALE,
                 textHeight: MAIN_MENU_CONTROL_CELL_TEXT_HEIGHT
             },
-            margin: MAIN_MENU_CONTROL_CELL_MARGIN,
-            meshId: this.mainMenuControlMeshId,
-            defaultMaterialId: this.mainMenuControlDefaultMaterialId,
-            highlightMeshId: this.mainMenuControlHighlightMeshId,
-            highlightMaterialId: this.mainMenuControlHighlightMaterialId,
-            parentId: this.root.id,
-            data
+        });
+        this.mainMenuControlStrip.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'main_menu') { return; }
+            let col = coord.y;
+            switch(col){
+                case MAIN_MENU_CONTROL_ITEMS.indexOf('Lock'):
+                    this.mainMenuControlStrip.highlight(coord);
+                    if(this.mainMenuControlStrip.highlighted){
+                        this.lockBall();
+                    }else{
+                        this.unlockBall();
+                    }
+                    break;
+                case MAIN_MENU_CONTROL_ITEMS.indexOf('Detach'):
+                    this.unEquipBall();
+                    break;
+                case MAIN_MENU_CONTROL_ITEMS.indexOf('Tools'):
+                    this.switchScene('tools_menu');
+                    break;
+            }
         });
     }
 
     private createInventoryMenu(){
-        this.inventoryMenu = new InventoryMenu(this.context, this, {
+        const INVENTORY_DIMENSIONS = new Vector2(4, 3);
+        const CELL_WIDTH = 0.1;
+        const CELL_HEIGHT = 0.1;
+        const CELL_DEPTH = 0.005;
+        const CELL_MARGIN = 0.005;
+        const CELL_SCALE = 1;
+
+        let meshId = this.assets.createBoxMesh('btn_mesh', CELL_WIDTH, CELL_HEIGHT, CELL_DEPTH).id;
+        let defaultMaterialId = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let highlightMeshId = this.assets.createBoxMesh('highlight_mesh', CELL_WIDTH+CELL_MARGIN, CELL_HEIGHT+CELL_MARGIN, CELL_DEPTH/2).id;
+        let highlightMaterialId = this.assets.createMaterial('highlight_btn_material', { color: MRE.Color3.Red() }).id;
+        let planeMeshId = this.assets.createPlaneMesh('plane_mesh', CELL_WIDTH, CELL_HEIGHT).id;
+
+        this.inventoryMenu = new GridMenu(this.context, {
+            // logic
             name: 'inventory',
-            offset:{
-                x: RADIUS,
-                y: RADIUS
-            },
+            title: 'Inventory',
             shape: {
                 row: INVENTORY_DIMENSIONS.x,
                 col: INVENTORY_DIMENSIONS.y
             },
-            cell: {
+            // asset
+            meshId: meshId,
+            defaultMaterialId: defaultMaterialId,
+            highlightMeshId: highlightMeshId,
+            highlightMaterialId: highlightMaterialId,
+            planeMeshId: planeMeshId,
+            defaultPlaneMaterial: this.defaultPlaneMaterial,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset:{
+                x: RADIUS,
+                y: RADIUS
+            },
+            // dimensions
+            margin: CELL_MARGIN,
+            box: {
                 width: CELL_WIDTH,
                 height: CELL_HEIGHT,
                 depth: CELL_DEPTH,
                 scale: CELL_SCALE,
-                highlightDepth: CELL_DEPTH/2,
                 textColor: MRE.Color3.White(),
                 textHeight: 0.01,
                 textAnchor: MRE.TextAnchorLocation.TopRight
+            },
+            highlight: {
+                depth: CELL_DEPTH/2
             },
             plane: {
                 width: CELL_WIDTH,
                 height: CELL_HEIGHT
             },
-            margin: CELL_MARGIN,
-            meshId: this.meshId,
-            defaultMaterialId: this.defaultMaterialId,
-            highlightMeshId: this.highlightMeshId,
-            highlightMaterialId: this.highlightMaterialId,
-            planeMeshId: this.planeMeshId,
-            parentId: this.root.id,
-            title: 'Inventory',
-            defaultPlaneMaterial: this.defaultPlaneMaterial
         });
         this.inventoryMenu.offsetLabels({x: CELL_WIDTH/2, y: CELL_HEIGHT/2});
-    }
+        this.inventoryMenu.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'inventory_menu' && this.currentScene != 'shop_menu') { return; }
+            this.inventoryMenu.highlight(coord);
+            let index = this.inventoryMenu.getHighlightedIndex(this.inventoryMenu.coord);
+            this.updateInventoryItemDescription(index);
+        });
+}
 
     private createInventoryMenuControlStrip(){
+        const INVENTORY_CONTROL_ITEMS = ['Prev', 'Next', 'Equip', 'Remove', 'Back'];
+        const CONTROL_CELL_WIDTH = 0.066
+        const CONTROL_CELL_HEIGHT = 0.05;
+        const CONTROL_CELL_DEPTH = 0.005;
+        const CONTROL_CELL_MARGIN = 0.005;
+        const CONTROL_CELL_SCALE = 1;
+        const CONTROL_CELL_TEXT_HEIGHT = 0.015;
+
+        let controlMeshId = this.assets.createBoxMesh('control_btn_mesh', CONTROL_CELL_WIDTH, CONTROL_CELL_HEIGHT, CONTROL_CELL_DEPTH).id;
+        let controlDefaultMaterialId = this.assets.createMaterial('control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let controlHighlightMeshId = this.assets.createBoxMesh('control_highlight_mesh', CONTROL_CELL_WIDTH+CONTROL_CELL_MARGIN, CONTROL_CELL_HEIGHT+CONTROL_CELL_MARGIN, CONTROL_CELL_DEPTH/2).id;
+        let controlHighlightMaterialId = this.assets.createMaterial('control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+
         let data = INVENTORY_CONTROL_ITEMS.map(t => [{
             text: t
         }]);
         let size = this.inventoryMenu.getMenuSize();
-        this.inventoryControlStrip = new ControlMenu(this.context, this, {
-            offset: {
-                x: RADIUS + size.width + CONTROL_CELL_MARGIN,
-                y: RADIUS
-            },
+        this.inventoryControlStrip = new GridMenu(this.context, {
+            // logic
+            data,
             shape: {
                 row: INVENTORY_CONTROL_ITEMS.length,
                 col: 1
             },
-            cell: {
+            // asset
+            meshId: controlMeshId,
+            defaultMaterialId: controlDefaultMaterialId,
+            highlightMeshId: controlHighlightMeshId,
+            highlightMaterialId: controlHighlightMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS + size.width + CONTROL_CELL_MARGIN,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
                 width: CONTROL_CELL_WIDTH,
                 height: CONTROL_CELL_HEIGHT,
                 depth: CONTROL_CELL_DEPTH,
@@ -1054,76 +730,139 @@ export class Inventory {
                 width: CONTROL_CELL_WIDTH,
                 height: CONTROL_CELL_HEIGHT
             },
-            margin: CELL_MARGIN,
-            meshId: this.controlMeshId,
-            defaultMaterialId: this.controlDefaultMaterialId,
-            highlightMeshId: this.controlHighlightMeshId,
-            highlightMaterialId: this.controlHighlightMaterialId,
-            parentId: this.root.id,
-            data
+            margin: CONTROL_CELL_MARGIN,
+        });
+        this.inventoryControlStrip.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'inventory_menu') { return; }
+
+            let row = coord.x;
+            switch(row){
+                case INVENTORY_CONTROL_ITEMS.indexOf('Next'):
+                    break;
+                case INVENTORY_CONTROL_ITEMS.indexOf('Prev'):
+                    break;
+                case INVENTORY_CONTROL_ITEMS.indexOf('Equip'):
+                    if (this.inventoryMenu.highlighted){
+                        let index = this.inventoryMenu.getHighlightedIndex(this.inventoryMenu.coord);
+                        this.equipItem(index, user);
+                        this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+                        this.updateMenuPage( this.equipmentMenu, this.userEquipments, this.getItemDescription );
+                    }
+                    break;
+                case INVENTORY_CONTROL_ITEMS.indexOf('Remove'):
+                    if (this.inventoryMenu.highlighted){
+                        let index = this.equipmentMenu.getHighlightedIndex(this.equipmentMenu.coord);
+                        this.removeItem(index);
+                        this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+                        this.updateMenuPage( this.equipmentMenu, this.userEquipments, this.getItemDescription );
+                    }
+                    break;
+                case INVENTORY_CONTROL_ITEMS.indexOf('Back'):
+                    this.switchScene('main_menu');
+                    break;
+            }
         });
     }
 
     private createInfoPanel(){
+        const INFO_PANEL_PLACEHOLDER = 'Click on item for details';
+        const INFO_CELL_HEIGHT = 0.1;
+        const INFO_CELL_DEPTH = 0.005;
+        const INFO_CELL_MARGIN = 0.005;
+        const INFO_CELL_SCALE = 1;
+        const INFO_CELL_TEXT_HEIGHT = 0.02;
+
         let data = [[{text: INFO_PANEL_PLACEHOLDER}]];
-        // inventory info}
+        // inventory info
         let INFO_CELL_WIDTH = this.inventoryMenu.getMenuSize().width;
-        this.infoPanelMeshId = this.assets.createBoxMesh('info_panel_mesh', INFO_CELL_WIDTH, INFO_CELL_HEIGHT, INFO_CELL_DEPTH).id;
-        this.infoPanel = new InfoPanel(this.context, this, {
-            offset: {
-                x: RADIUS,
-                y: RADIUS - (INFO_CELL_HEIGHT + INFO_CELL_MARGIN)
-            },
+        let infoPanelMeshId = this.assets.createBoxMesh('info_panel_mesh', INFO_CELL_WIDTH, INFO_CELL_HEIGHT, INFO_CELL_DEPTH).id;
+        let infoPanelMaterialId = this.assets.createMaterial('info_panel_material', { color: MRE.Color3.LightGray() }).id;;
+
+        this.infoPanel = new GridMenu(this.context, {
+            // logic
+            data,
             shape: {
                 row: 1,
                 col: 1
             },
-            cell: {
+            // assets
+            meshId: infoPanelMeshId,
+            defaultMaterialId: infoPanelMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS,
+                y: RADIUS - (INFO_CELL_HEIGHT + INFO_CELL_MARGIN)
+            },
+            // dimensions
+            box: {
                 width: INFO_CELL_WIDTH,
                 height: INFO_CELL_HEIGHT,
                 depth: INFO_CELL_DEPTH,
                 scale: INFO_CELL_SCALE,
                 textHeight: INFO_CELL_TEXT_HEIGHT
             },
-            margin: CELL_MARGIN,
-            meshId: this.infoPanelMeshId,
-            defaultMaterialId: this.infoPanelMaterialId,
-            parentId: this.root.id,
-            data
+            margin: INFO_CELL_MARGIN,
         });
+        this.infoPanel.addBehavior((coord: Vector2, name: string, user: MRE.User)=>{});
     }
 
     private createEquipmentMenu(){
-        this.equipmentMenu = new EquipmentMenu(this.context, this, {
-            offset:{
-                x: RADIUS + this.inventoryMenu.getMenuSize().width + CONTROL_CELL_MARGIN + this.inventoryControlStrip.getMenuSize().width + EQUIPMENT_CELL_MARGIN,
-                y: RADIUS
-            },
+        const EQUIPMENT_ITEMS = ['Helmet', 'Armor', 'Weapon', 'Ring'];
+        const EQUIPMENT_CELL_WIDTH = 0.3;
+        const EQUIPMENT_CELL_HEIGHT = 0.1;
+        const EQUIPMENT_CELL_DEPTH = 0.005;
+        const EQUIPMENT_CELL_MARGIN = 0.005;
+        const EQUIPMENT_CELL_SCALE = 1;
+        const EQUIPMENT_CELL_TEXT_HEIGHT = 0.02;
+
+        const EQUIPMENT_PLANE_WIDTH = 0.1;
+        const EQUIPMENT_PLANE_HEIGHT = 0.1;
+
+        let equipmentMenuMeshId = this.assets.createBoxMesh('equipment_menu_btn_mesh', EQUIPMENT_CELL_WIDTH, EQUIPMENT_CELL_HEIGHT, EQUIPMENT_CELL_DEPTH).id;
+        let equipmentMenuMaterialId = this.assets.createMaterial('equipment_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let equipmentMenuHighlightMeshId = this.assets.createBoxMesh('equipment_menu_highlight_mesh', EQUIPMENT_CELL_WIDTH+EQUIPMENT_CELL_MARGIN, EQUIPMENT_CELL_HEIGHT+EQUIPMENT_CELL_MARGIN, EQUIPMENT_CELL_DEPTH/2).id;
+        let equipmentMenuHighlightMaterialId = this.assets.createMaterial('equipment_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+        let equipmentMenuPlaneMeshId = this.assets.createPlaneMesh('equipment_menu_plane_mesh', EQUIPMENT_PLANE_WIDTH, EQUIPMENT_PLANE_HEIGHT).id;
+
+        this.equipmentMenu = new GridMenu(this.context, {
+            // logic
+            title: 'Equipment',
             shape: {
                 row: EQUIPMENT_ITEMS.length,
                 col: 1
             },
-            cell: {
+            // assets
+            meshId: equipmentMenuMeshId,
+            defaultMaterialId: equipmentMenuMaterialId,
+            highlightMeshId: equipmentMenuHighlightMeshId,
+            highlightMaterialId: equipmentMenuHighlightMaterialId,
+            planeMeshId: equipmentMenuPlaneMeshId,
+            defaultPlaneMaterial: this.defaultPlaneMaterial,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset:{
+                x: RADIUS + this.inventoryMenu.getMenuSize().width + this.inventoryControlStrip.margin + this.inventoryControlStrip.getMenuSize().width + EQUIPMENT_CELL_MARGIN,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
                 width: EQUIPMENT_CELL_WIDTH,
                 height: EQUIPMENT_CELL_HEIGHT,
                 depth: EQUIPMENT_CELL_DEPTH,
                 scale: EQUIPMENT_CELL_SCALE,
-                highlightDepth: EQUIPMENT_CELL_DEPTH/2,
                 textHeight: EQUIPMENT_CELL_TEXT_HEIGHT
+            },
+            highlight: {
+                depth: EQUIPMENT_CELL_DEPTH/2,
             },
             plane: {
                 width: EQUIPMENT_PLANE_WIDTH,
                 height: EQUIPMENT_PLANE_HEIGHT
             },
             margin: EQUIPMENT_CELL_MARGIN,
-            meshId: this.equipmentMenuMeshId,
-            defaultMaterialId: this.equipmentMenuMaterialId,
-            highlightMeshId: this.equipmentMenuHighlightMeshId,
-            highlightMaterialId: this.equipmentMenuHighlightMaterialId,
-            planeMeshId: this.equipmentMenuPlaneMeshId,
-            parentId: this.root.id,
-            title: 'Equipment',
-            defaultPlaneMaterial: this.defaultPlaneMaterial
         });
         this.equipmentMenu.offsetMenu({
             x: 0,
@@ -1132,90 +871,210 @@ export class Inventory {
         });
         this.equipmentMenu.planesAlignLeft();
         this.equipmentMenu.labelsRightToPlane();
+
+        this.equipmentMenu.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'inventory_menu') { return; }
+            this.equipmentMenu.highlight(coord);
+        });
     }
 
-    private createShopMenu(){
-        this.shopMenu = new ShopMenu(this.context, this, {
-            name: 'shop',
-            offset:{
-                x: RADIUS,
-                y: RADIUS
+    private createUserStatsPanel(){
+        const STATS_CELL_WIDTH = this.equipmentMenu.getMenuSize().width;
+        const STATS_CELL_HEIGHT = 0.1;
+        const STATS_CELL_DEPTH = 0.005;
+        const STATS_CELL_MARGIN = 0.005;
+        const STATS_CELL_SCALE = 1;
+        const STATS_CELL_TEXT_HEIGHT = 0.02;
+
+        let userStatsMeshId = this.assets.createBoxMesh('user_stats_btn_mesh', STATS_CELL_WIDTH, STATS_CELL_HEIGHT, STATS_CELL_DEPTH).id;
+        let userStatsMaterialId = this.assets.createMaterial('user_stats_material', { color: MRE.Color3.LightGray() }).id;;
+
+        let data = [[{text: OWNER_NAME}]];
+        // user stats
+        this.userStatsPanel = new GridMenu(this.context, {
+            // logic
+            shape: {
+                row: 1,
+                col: 1
             },
+            data,
+            // assets
+            meshId: userStatsMeshId,
+            defaultMaterialId: userStatsMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS + this.inventoryMenu.getMenuSize().width + this.inventoryControlStrip.margin + this.inventoryControlStrip.getMenuSize().width + STATS_CELL_MARGIN,
+                y: RADIUS - (STATS_CELL_HEIGHT + STATS_CELL_MARGIN)
+            },
+            // dimensions
+            box: {
+                width: STATS_CELL_WIDTH,
+                height: STATS_CELL_HEIGHT,
+                depth: STATS_CELL_DEPTH,
+                scale: STATS_CELL_SCALE,
+                textHeight: STATS_CELL_TEXT_HEIGHT
+            },
+            margin: STATS_CELL_MARGIN,
+        });
+
+        this.userStatsPanel.addBehavior((coord: Vector2, name: string, user: MRE.User) => {});
+    }
+
+
+    private createShopMenu(){
+        const SHOP_DIMENSIONS = new Vector2(3,4);
+        const SHOP_CELL_WIDTH = 0.1;
+        const SHOP_CELL_HEIGHT = 0.1;
+        const SHOP_CELL_DEPTH = 0.005;
+        const SHOP_CELL_MARGIN = 0.005;
+        const SHOP_CELL_SCALE = 1;
+        const SHOP_PLANE_WIDTH = 0.1;
+        const SHOP_PLANE_HEIGHT = 0.1;
+
+        let shopMenuMeshId = this.assets.createBoxMesh('shop_menu_btn_mesh', SHOP_CELL_WIDTH, SHOP_CELL_HEIGHT, SHOP_CELL_DEPTH).id;
+        let shopMenuDefaultMaterialId = this.assets.createMaterial('shop_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let shopMenuHighlightMeshId = this.assets.createBoxMesh('shop_menu_highlight_mesh', SHOP_CELL_WIDTH+SHOP_CELL_MARGIN, SHOP_CELL_HEIGHT+SHOP_CELL_MARGIN, SHOP_CELL_DEPTH/2).id;
+        let shopMenuHighlightMaterialId = this.assets.createMaterial('shop_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+        let shopMenuPlaneMeshId = this.assets.createPlaneMesh('shop_menu_plane_mesh', SHOP_PLANE_WIDTH, SHOP_PLANE_HEIGHT).id;
+        
+        this.shopMenu = new GridMenu(this.context, {
+            // logic
+            name: 'shop',
+            title: 'Shop',
             shape: {
                 row: SHOP_DIMENSIONS.x,
                 col: SHOP_DIMENSIONS.y
             },
-            cell: {
+            // assets
+            meshId: shopMenuMeshId,
+            defaultMaterialId: shopMenuDefaultMaterialId,
+            highlightMeshId: shopMenuHighlightMeshId,
+            highlightMaterialId: shopMenuHighlightMaterialId,
+            planeMeshId: shopMenuPlaneMeshId,
+            defaultPlaneMaterial: this.defaultPlaneMaterial,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset:{
+                x: RADIUS,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
                 width: SHOP_CELL_WIDTH,
                 height: SHOP_CELL_HEIGHT,
                 depth: SHOP_CELL_DEPTH,
                 scale: SHOP_CELL_SCALE,
-                highlightDepth: SHOP_CELL_DEPTH/2,
                 textColor: MRE.Color3.White(),
                 textHeight: 0.01,
                 textAnchor: MRE.TextAnchorLocation.TopRight
+            },
+            highlight: {
+                depth: SHOP_CELL_DEPTH/2,
             },
             plane: {
                 width: SHOP_CELL_WIDTH,
                 height: SHOP_CELL_HEIGHT
             },
             margin: SHOP_CELL_MARGIN,
-            meshId: this.shopMenuMeshId,
-            defaultMaterialId: this.shopMenuDefaultMaterialId,
-            highlightMeshId: this.shopMenuHighlightMeshId,
-            highlightMaterialId: this.shopMenuHighlightMaterialId,
-            planeMeshId: this.shopMenuPlaneMeshId,
-            parentId: this.root.id,
-            title: 'Shop',
-            defaultPlaneMaterial: this.defaultPlaneMaterial
         });
         this.shopMenu.offsetLabels({x: SHOP_CELL_WIDTH/2, y: SHOP_CELL_HEIGHT/2});
+        this.shopMenu.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'shop_menu') { return; }
+            this.shopMenu.highlight(coord);
+            let index = this.shopMenu.getHighlightedIndex(this.shopMenu.coord);
+            this.updateShopItemDescription(index);
+        });
     }
 
     private createShopMenuInfoPanel(){
+        const SHOP_INFO_PANEL_PLACEHOLDER = 'Click on item for details';
+        const SHOP_INFO_CELL_HEIGHT = 0.1;
+        const SHOP_INFO_CELL_DEPTH = 0.005;
+        const SHOP_INFO_CELL_MARGIN = 0.005;
+        const SHOP_INFO_CELL_SCALE = 1;
+        const SHOP_INFO_CELL_TEXT_HEIGHT = 0.02;
+
         let data = [[{text: SHOP_INFO_PANEL_PLACEHOLDER}]];
+
+        let shopMenuInfoPanelMaterialId = this.assets.createMaterial('shop_menu_info_panel_material', { color: MRE.Color3.LightGray() }).id;
         // inventory info
         let SHOP_INFO_CELL_WIDTH = this.shopMenu.getMenuSize().width;
-        this.shopMenuInfoPanelMeshId = this.assets.createBoxMesh('shop_menu_info_panel_mesh', SHOP_INFO_CELL_WIDTH, SHOP_INFO_CELL_HEIGHT, SHOP_INFO_CELL_DEPTH).id;
-        this.shopMenuInfoPanel = new InfoPanel(this.context, this, {
-            offset: {
-                x: RADIUS,
-                y: RADIUS - (INFO_CELL_HEIGHT + INFO_CELL_MARGIN)
-            },
+        let shopMenuInfoPanelMeshId = this.assets.createBoxMesh('shop_menu_info_panel_mesh', SHOP_INFO_CELL_WIDTH, SHOP_INFO_CELL_HEIGHT, SHOP_INFO_CELL_DEPTH).id;
+        this.shopMenuInfoPanel = new GridMenu(this.context, {
+            // logic
+            data,
             shape: {
                 row: 1,
                 col: 1
             },
-            cell: {
+            // assets
+            meshId: shopMenuInfoPanelMeshId,
+            defaultMaterialId: shopMenuInfoPanelMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS,
+                y: RADIUS - (SHOP_INFO_CELL_HEIGHT + SHOP_INFO_CELL_MARGIN)
+            },
+            // dimensions
+            box: {
                 width: SHOP_INFO_CELL_WIDTH,
                 height: SHOP_INFO_CELL_HEIGHT,
                 depth: SHOP_INFO_CELL_DEPTH,
                 scale: SHOP_INFO_CELL_SCALE,
                 textHeight: SHOP_INFO_CELL_TEXT_HEIGHT
             },
-            margin: SHOP_CELL_MARGIN,
-            meshId: this.shopMenuInfoPanelMeshId,
-            defaultMaterialId: this.shopMenuInfoPanelMaterialId,
-            parentId: this.root.id,
-            data
+            margin: SHOP_INFO_CELL_MARGIN,
+        });
+        this.shopMenuInfoPanel.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'shop_menu') { return; }
         });
     }
 
     private createShopMenuControlStrip(){
+        const SHOP_CONTROL_ITEMS = ['Prev', 'Next', 'Buy', 'Back'];
+        const SHOP_CONTROL_CELL_WIDTH = 0.066
+        const SHOP_CONTROL_CELL_HEIGHT = 0.05;
+        const SHOP_CONTROL_CELL_DEPTH = 0.005;
+        const SHOP_CONTROL_CELL_MARGIN = 0.005;
+        const SHOP_CONTROL_CELL_SCALE = 1;
+        const SHOP_CONTROL_CELL_TEXT_HEIGHT = 0.02;
+
         let data = SHOP_CONTROL_ITEMS.map(t => [{
             text: t
         }]);
+
+        let shopMenuControlMeshId = this.assets.createBoxMesh('shop_menu_control_btn_mesh', SHOP_CONTROL_CELL_WIDTH, SHOP_CONTROL_CELL_HEIGHT, SHOP_CONTROL_CELL_DEPTH).id;
+        let shopMenuControlDefaultMaterialId = this.assets.createMaterial('shop_menu_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let shopMenuControlHighlightMeshId = this.assets.createBoxMesh('shop_menu_control_highlight_mesh', SHOP_CONTROL_CELL_WIDTH+SHOP_CONTROL_CELL_MARGIN, SHOP_CONTROL_CELL_HEIGHT+SHOP_CONTROL_CELL_MARGIN, SHOP_CONTROL_CELL_DEPTH/2).id;
+        let shopMenuControlHighlightMaterialId = this.assets.createMaterial('shop_menu_control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+
         let size = this.shopMenu.getMenuSize();
-        this.shopMenuControlStrip = new ShopMenuControlStrip(this.context, this, {
-            offset: {
-                x: RADIUS + size.width + SHOP_CONTROL_CELL_MARGIN,
-                y: RADIUS
-            },
+        this.shopMenuControlStrip = new GridMenu(this.context, {
+            // logic
+            data,
             shape: {
                 row: SHOP_CONTROL_ITEMS.length,
                 col: 1
             },
-            cell: {
+            // assets
+            meshId: shopMenuControlMeshId,
+            defaultMaterialId: shopMenuControlDefaultMaterialId,
+            highlightMeshId: shopMenuControlHighlightMeshId,
+            highlightMaterialId: shopMenuControlHighlightMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS + size.width + SHOP_CONTROL_CELL_MARGIN,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
                 width: SHOP_CONTROL_CELL_WIDTH,
                 height: SHOP_CONTROL_CELL_HEIGHT,
                 depth: SHOP_CONTROL_CELL_DEPTH,
@@ -1223,29 +1082,81 @@ export class Inventory {
                 textHeight: SHOP_CONTROL_CELL_TEXT_HEIGHT
             },
             margin: SHOP_CONTROL_CELL_MARGIN,
-            meshId: this.shopMenuControlMeshId,
-            defaultMaterialId: this.shopMenuControlDefaultMaterialId,
-            highlightMeshId: this.shopMenuControlHighlightMeshId,
-            highlightMaterialId: this.shopMenuControlHighlightMaterialId,
-            parentId: this.root.id,
-            data
+        });
+        this.shopMenuControlStrip.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'shop_menu') { return; }
+            let row = coord.x;
+            switch(row){
+                case SHOP_CONTROL_ITEMS.indexOf('Prev'):
+                    this.shopMenu.decrementPageNum();
+                    this.updateMenuPage( this.shopMenu, this.getShopPageData() );
+                    break;
+                case SHOP_CONTROL_ITEMS.indexOf('Next'):
+                    this.shopMenu.incrementPageNum(this.itemDatabase.length);
+                    this.updateMenuPage( this.shopMenu, this.getShopPageData() );
+                    break;
+                case SHOP_CONTROL_ITEMS.indexOf('Buy'):
+                    if (this.shopMenu.highlighted){
+                        let index = this.shopMenu.getHighlightedIndex(this.shopMenu.coord);
+                        this.buyItem(index);
+                        this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+                    }
+                    break;
+                case SHOP_CONTROL_ITEMS.indexOf('Back'):
+                    let w = this.shopMenu.getMenuSize().width + this.shopMenuControlStrip.getMenuSize().width;
+                    this.inventoryMenu.offsetMenu({x: -(w + SHOP_CONTROL_CELL_MARGIN*2), y: 0});
+                    this.infoPanel.offsetMenu({x: -(w + SHOP_CONTROL_CELL_MARGIN*2), y: 0});
+                    this.switchScene('main_menu');
+                    break;
+            }
         });
     }
 
     private createShopInventoryControlStrip(){
+        const SHOP_INVENTORY_CONTROL_ITEMS = ['Prev', 'Next', 'Sell'];
+        const SHOP_INVENTORY_CONTROL_CELL_WIDTH = 0.066
+        const SHOP_INVENTORY_CONTROL_CELL_HEIGHT = 0.05;
+        const SHOP_INVENTORY_CONTROL_CELL_DEPTH = 0.005;
+        const SHOP_INVENTORY_CONTROL_CELL_MARGIN = 0.005;
+        const SHOP_INVENTORY_CONTROL_CELL_SCALE = 1;
+        const SHOP_INVENTORY_CONTROL_CELL_TEXT_HEIGHT = 0.02;
+
         let data = SHOP_INVENTORY_CONTROL_ITEMS.map(t => [{
             text: t
         }]);
-        this.shopInventoryControlStrip = new ShopInventoryControlStrip(this.context, this, {
+
+        let shopInventoryControlMeshId = this.assets.createBoxMesh('shop_inventory_control_btn_mesh', SHOP_INVENTORY_CONTROL_CELL_WIDTH, SHOP_INVENTORY_CONTROL_CELL_HEIGHT, SHOP_INVENTORY_CONTROL_CELL_DEPTH).id;
+        let shopInventoryControlDefaultMaterialId = this.assets.createMaterial('shop_inventory_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let shopInventoryControlHighlightMeshId = this.assets.createBoxMesh('shop_inventory_control_highlight_mesh', SHOP_INVENTORY_CONTROL_CELL_WIDTH+SHOP_INVENTORY_CONTROL_CELL_MARGIN, SHOP_INVENTORY_CONTROL_CELL_HEIGHT+SHOP_INVENTORY_CONTROL_CELL_MARGIN, SHOP_INVENTORY_CONTROL_CELL_DEPTH/2).id;
+        let shopInventoryControlHighlightMaterialId = this.assets.createMaterial('shop_inventory_control_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+
+        this.shopInventoryControlStrip = new GridMenu(this.context, {
+            // logic
+            data,
+            // assets
+            meshId: shopInventoryControlMeshId,
+            defaultMaterialId: shopInventoryControlDefaultMaterialId,
+            highlightMeshId: shopInventoryControlHighlightMeshId,
+            highlightMaterialId: shopInventoryControlHighlightMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
             offset: {
-                x: RADIUS + this.shopMenu.getMenuSize().width + SHOP_CELL_MARGIN + this.shopMenuControlStrip.getMenuSize().width + CELL_MARGIN + this.inventoryMenu.getMenuSize().width + SHOP_INVENTORY_CONTROL_CELL_MARGIN,
+                x: RADIUS 
+                    + this.shopMenu.getMenuSize().width 
+                    + this.shopMenu.margin 
+                    + this.shopMenuControlStrip.getMenuSize().width 
+                    + this.inventoryMenu.margin 
+                    + this.inventoryMenu.getMenuSize().width 
+                    + SHOP_INVENTORY_CONTROL_CELL_MARGIN,
                 y: RADIUS
             },
+            // dimensions
             shape: {
                 row: SHOP_INVENTORY_CONTROL_ITEMS.length,
                 col: 1
             },
-            cell: {
+            box: {
                 width: SHOP_INVENTORY_CONTROL_CELL_WIDTH,
                 height: SHOP_INVENTORY_CONTROL_CELL_HEIGHT,
                 depth: SHOP_INVENTORY_CONTROL_CELL_DEPTH,
@@ -1253,69 +1164,101 @@ export class Inventory {
                 textHeight: SHOP_INVENTORY_CONTROL_CELL_TEXT_HEIGHT
             },
             margin: SHOP_INVENTORY_CONTROL_CELL_MARGIN,
-            meshId: this.shopInventoryControlMeshId,
-            defaultMaterialId: this.shopInventoryControlDefaultMaterialId,
-            highlightMeshId: this.shopInventoryControlHighlightMeshId,
-            highlightMaterialId: this.shopInventoryControlHighlightMaterialId,
-            parentId: this.root.id,
-            data
+        });
+
+        this.shopInventoryControlStrip.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'shop_menu') { return; }
+            let row = coord.x;
+            switch(row){
+                case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Prev'):
+                    this.inventoryMenu.decrementPageNum();
+                    this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData() );
+                    break;
+                case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Next'):
+                    this.inventoryMenu.incrementPageNum(this.userItems.length);
+                    this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData() );
+                    break;
+                case SHOP_INVENTORY_CONTROL_ITEMS.indexOf('Sell'):
+                    if (this.shopMenu.highlighted){
+                        let index = this.inventoryMenu.getHighlightedIndex(this.inventoryMenu.coord);
+                        this.sellItem(index);
+                        this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+                    }
+                    break;
+            }
         });
     }
 
     private createToolsMenu(){
+        const TOOLS_MENU_CELL_WIDTH = 0.4;
+        const TOOLS_MENU_CELL_HEIGHT = 0.1;
+        const TOOLS_MENU_CELL_DEPTH = 0.005;
+        const TOOLS_MENU_CELL_MARGIN = 0.005;
+        const TOOLS_MENU_CELL_SCALE = 1;
+
+        const TOOLS_MENU_ITEMS = ['Soundboard', 'Bad Dad Jokes', 'Text To Speech', 'Mirror', 'Back'];
+
         let data = TOOLS_MENU_ITEMS.map(t => [{
             text: t
         }]);
-        this.toolsMenu = new ToolsMenu(this.context, this, {
-            offset: {
-                x: RADIUS,
-                y: RADIUS
-            },
+
+        let toolsMenuMeshId = this.assets.createBoxMesh('tools_menu_btn_mesh', TOOLS_MENU_CELL_WIDTH, TOOLS_MENU_CELL_HEIGHT, TOOLS_MENU_CELL_DEPTH).id;
+        let toolsMenuDefaultMaterialId = this.assets.createMaterial('tools_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let toolsMenuHighlightMeshId = this.assets.createBoxMesh('tools_menu_highlight_mesh', TOOLS_MENU_CELL_WIDTH+TOOLS_MENU_CELL_MARGIN, TOOLS_MENU_CELL_HEIGHT+TOOLS_MENU_CELL_MARGIN, TOOLS_MENU_CELL_DEPTH/2).id;
+        let toolsMenuHighlightMaterialId = this.assets.createMaterial('tools_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+
+        this.toolsMenu = new GridMenu(this.context, {
+            // logic
+            title: 'Tools',
+            data,
             shape: {
                 row: TOOLS_MENU_ITEMS.length,
                 col: 1
             },
-            cell: {
+            // assets
+            meshId: toolsMenuMeshId,
+            defaultMaterialId: toolsMenuDefaultMaterialId,
+            highlightMeshId: toolsMenuHighlightMeshId,
+            highlightMaterialId: toolsMenuHighlightMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
                 width: TOOLS_MENU_CELL_WIDTH,
                 height: TOOLS_MENU_CELL_HEIGHT,
                 depth: TOOLS_MENU_CELL_DEPTH,
                 scale: TOOLS_MENU_CELL_SCALE
             },
             margin: TOOLS_MENU_CELL_MARGIN,
-            meshId: this.toolsMenuMeshId,
-            defaultMaterialId: this.toolsMenuDefaultMaterialId,
-            highlightMeshId: this.toolsMenuHighlightMeshId,
-            highlightMaterialId: this.toolsMenuHighlightMaterialId,
-            parentId: this.root.id,
-            title: 'Tools',
-            data
         });
-    }
 
-    private createUserStatsPanel(){
-        let data = [[{text: OWNER_NAME}]];
-        // user stats
-        this.userStatsPanel = new UserStatsPanel(this.context, this, {
-            offset: {
-                x: RADIUS + this.inventoryMenu.getMenuSize().width + CONTROL_CELL_MARGIN + this.inventoryControlStrip.getMenuSize().width + STATS_CELL_MARGIN,
-                y: RADIUS - (STATS_CELL_HEIGHT + STATS_CELL_MARGIN)
-            },
-            shape: {
-                row: 1,
-                col: 1
-            },
-            cell: {
-                width: STATS_CELL_WIDTH,
-                height: STATS_CELL_HEIGHT,
-                depth: STATS_CELL_DEPTH,
-                scale: STATS_CELL_SCALE,
-                textHeight: STATS_CELL_TEXT_HEIGHT
-            },
-            margin: CELL_MARGIN,
-            meshId: this.userStatsMeshId,
-            defaultMaterialId: this.userStatsMaterialId,
-            parentId: this.root.id,
-            data
+        this.toolsMenu.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'tools_menu') return;
+            let row = coord.x;
+            switch(row){
+                case TOOLS_MENU_ITEMS.indexOf('Soundboard'):
+                    break;
+                case TOOLS_MENU_ITEMS.indexOf('Bad Dad Jokes'):
+                    break;
+                case TOOLS_MENU_ITEMS.indexOf('Text To Speech'):
+                    user.prompt("Text To Speech", true).then((dialog) => {
+                        if (dialog.submitted) {
+                            this.textToSpeech(dialog.text);
+                        }
+                    });
+                    break;
+                case TOOLS_MENU_ITEMS.indexOf('Mirror'):
+                    this.toolsMenu.highlight(coord);
+                    break;
+                case TOOLS_MENU_ITEMS.indexOf('Back'):
+                    this.switchScene('main_menu');
+                    break;
+            }
         });
     }
 
@@ -1329,81 +1272,4 @@ export class Inventory {
             this.switchScene('');
         }
     }
-
-    ///////////////////
-    //// tts
-    private async greet(user: MRE.User){
-        let u = this.parseUser(user);
-        console.log(u);
-
-        let name = u.name;
-        let loc = await this.ip2location(u.ip);
-        console.log(loc);
-
-        let tz;
-        if (isNaN(loc.lat) && isNaN(loc.lng) || loc.lat==null && loc.lng==null){
-            tz = 'Asia/Shanghai';
-        } else{
-            tz = geotz(loc.lat, loc.lng)[0];
-        }
-        let hour = moment.tz(tz).hour();
-        let greet = "Good " + (hour>=4 && hour<12 && "Morning" || hour>=12 && hour<18 && "Afternoon" || "Evening");
-
-        this.tts(`${greet}, ${name}, welcome to the spaceship`);
-    }
-
-    private bye(user: MRE.User){
-        let u = this.parseUser(user);
-
-        let name = u.name;
-        this.tts(`${name} has left the spaceship`);
-    }
-
-    public async tts(text: string){
-        let fileName = sha256(text) + '.wav';
-        let filePath = path.join(__dirname, '../public/', fileName);
-        console.log(text);
-        let o;
-        try{
-            o = await text2wav(text);
-        }catch(err){
-            console.log(err);
-            return;
-        }
-        fs.writeFile(filePath, Buffer.from(o), (err) => {
-            if(err){ console.log(err);}
-            const sound = this.assets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}` });
-            this.playSound(sound, {});
-        });
-    }
-
-    ////////////////
-    //// utils
-
-    private parseUser(user: MRE.User){
-        let ra = user.properties['remoteAddress'];
-        let ipv4 = ra.split(':').pop();
-        return {
-            id: user.id,
-            name: user.name,
-            device: user.properties['device-model'],
-            ip: ipv4
-        }
-    }
-
-    private async ip2location(ip: string){
-        console.log(`http://api.ipapi.com/${ip}?access_key=${API_KEY}`);
-        const res = await fetchJSON(`http://api.ipapi.com/${ip}?access_key=${API_KEY}`);
-        return {
-            lat: res.latitude,
-            lng: res.longitude,
-            cc: res.country_code,
-            country: res.country_name
-        }
-    }
-
-    private checkUserName(user: MRE.User, name: string){
-        return user.name == name;
-    }
-
 }

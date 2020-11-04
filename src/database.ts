@@ -4,6 +4,39 @@ import cheerio from 'cheerio';
 const email = process.env['EMAIL'];
 const password = process.env['PASSWORD'];
 
+type ObjectDescriptor = {
+    thumbnailUri: string;
+    resourceId: string;
+    attachPoint: string;
+    scale?: {
+        x: number;
+        y: number;
+        z: number;
+    };
+    rotation?: {
+        x: number;
+        y: number;
+        z: number;
+    };
+    position?: {
+        x: number;
+        y: number;
+        z: number;
+    };
+};
+
+// game related data structures.
+export interface ItemDescriptor {
+    id: number,
+    name: string,
+    type: string,
+    attack?: number,
+    defense?: number,
+    count?: number
+    cost?: number,
+    obj?: ObjectDescriptor
+}
+
 export class AltVRCrawler{
     constructor(){
     }
@@ -91,15 +124,22 @@ export class AltVRCrawler{
     }
 }
 
-(async ()=>{
-    let crawler = new AltVRCrawler();
-    crawler.get_kits([
-        '1150502900485587047',
-        '1150502900485587047?page=2',
-        '1150502900485587047?page=3',
-        '1150502900485587047?page=4',
-        '1150502900485587047?page=5',
-        '1150502900485587047?page=6',
-        '1150502900485587047?page=7'
-    ]);
-})();
+
+// import fs from 'fs';
+
+// let o = require('../public/data/data.json');
+// o = o.map((e:any, i:number) => ({
+//     obj: {
+//         thumbnailUri: e.thumbnailUri,
+//         resourceId: `artifact:${e.artifactId}`,
+//         attachPoint: 'head'
+//     },
+//     id: i,
+//     name: e.name,
+//     type: 'Helmet',
+//     defense: 1,
+//     count: 1,
+//     cost: 1
+// })).splice(1,50);
+
+// fs.writeFile('./public/data/items.json', JSON.stringify(o, null, 4), (err)=>{if(err) console.log(err);});

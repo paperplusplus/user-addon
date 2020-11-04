@@ -1,6 +1,6 @@
 import { log, WebHost, Permissions } from '@microsoft/mixed-reality-extension-sdk';
 import { resolve as resolvePath } from 'path';
-import { Inventory } from './app';
+import { AltRPG } from './app';
 
 log.enable('app');
 
@@ -15,6 +15,6 @@ const server = new WebHost({
 });
 
 // Handle new application sessions
-server.adapter.onConnection((context, params) => new Inventory(context, params, server.baseUrl));
+server.adapter.onConnection((context, params) => new AltRPG(context, params, server.baseUrl));
 
 export default server;

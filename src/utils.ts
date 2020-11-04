@@ -1,5 +1,10 @@
+import * as MRE from '@microsoft/mixed-reality-extension-sdk';
 import { get } from 'http';
 
+const API_KEY = process.env['API_KEY'];
+
+////////////////
+//// utils
 export function fetchJSON(url: string): Promise<any> {
 	return new Promise((resolve, reject) => {
 		get(url, res => {
@@ -34,4 +39,29 @@ export function fetchJSON(url: string): Promise<any> {
 			});
 		});
 	});
+}
+export function parseUser(user: MRE.User){
+    let ra = user.properties['remoteAddress'];
+    let ipv4 = ra.split(':').pop();
+    return {
+        id: user.id,
+        name: user.name,
+        device: user.properties['device-model'],
+        ip: ipv4
+    }
+}
+
+export async function ip2location(ip: string){
+    console.log(`http://api.ipapi.com/${ip}?access_key=${API_KEY}`);
+    const res = await fetchJSON(`http://api.ipapi.com/${ip}?access_key=${API_KEY}`);
+    return {
+        lat: res.latitude,
+        lng: res.longitude,
+        cc: res.country_code,
+        country: res.country_name
+    }
+}
+
+export function checkUserName(user: MRE.User, name: string){
+    return user.name == name;
 }
