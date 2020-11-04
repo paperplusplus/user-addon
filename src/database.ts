@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import superagent from 'superagent';
 import cheerio from 'cheerio';
 import { fetchJSON } from './utils';
@@ -157,9 +158,86 @@ export async function getJoke(type: JOKE_TYPE): Promise<DadJoke[]>{
     return res;
 }
 
+export type Meme = {
+    name: string,
+    uri: string
+}
+
+export class MemeCrawler{
+    constrcutor(){
+    }
+
+    public async crawl_page(page: number){
+        let baseUrl = `https://www.myinstants.com`;
+        let url = `https://www.myinstants.com/search/?page=${page}`;
+        let headers = {
+            "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
+            'Content-Type':'application/x-www-form-urlencoded'
+        };
+        return new Promise<Meme[]>(function(resolve, reject) {
+            superagent.get(url).set(headers).end(function (err, response) {
+                if (err) {reject}
+                let $ = cheerio.load(response.text);
+                let items: Meme[] = [];
+                $("div#instants_container div.instant").children('div.small-button').each((i,e) => {
+                    let n = $(e);
+                    let u = n.attr("onmousedown");
+                    let name = n.siblings('a').text();
+                    let _uri = /\/.*mp3/.exec(u);
+                    if (_uri) {
+                        let uri = _uri[0];
+                        uri = `${baseUrl}${uri}`;
+                        let it = {
+                            name,
+                            uri
+                        }
+                        items.push(it);
+                    }
+                    else{
+                        console.log(page, name, u);
+                    }
+                });
+                resolve(items);
+            });
+        });
+    }
+
+    public async crawl(){
+        let items = [];
+        for(let i=1; i<27; i++){
+            items.push(...await this.crawl_page(i));
+        }
+        return items;
+    }
+
+    public async downloadFile(uri: string){
+        let headers = {
+            "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
+            'Content-Type':'application/x-www-form-urlencoded'
+        };
+        return new Promise<string>(function(resolve, reject) {
+            let fileName = path.basename(uri);
+            let filePath = `./public/data/${fileName}`;
+            superagent.get(uri).set(headers).pipe(fs.createWriteStream(filePath));
+        });
+    }
+}
+
 // (async ()=>{
 //     let crawler = new AltVRCrawler();
 //     crawler.get_kits([
 //         '1493616657610834914',
 //     ]);
+// })();
+
+// (async ()=>{
+//     let crawler = new MemeCrawler();
+//     // let memes = await crawler.crawl();
+//     // fs.writeFile('./public/data/meme.json', JSON.stringify(memes, null, 4), (err)=>{if(err) console.log(err);});
+//     // let memes: Meme[] = require('../public/data/meme.json');
+//     // console.log(memes);
+//     // for (let i=0; i<memes.length; i++){
+//     //     console.log(memes[i].name);
+//     //     crawler.downloadFile(memes[i].uri);
+//     // }
 // })();
