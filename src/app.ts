@@ -53,6 +53,10 @@ export class AltRPG {
     private ball: Button;
     private root: MRE.Actor;
 
+    // camera & mirror
+    private camera: MRE.Actor;
+    private mirror: MRE.Actor;
+
     // main_menu scene
     private mainMenu: GridMenu;
     private mainMenuControlStrip: GridMenu;
@@ -157,10 +161,14 @@ export class AltRPG {
         this.leftSound = this.assets.createSound('left', { uri: `${this.baseUrl}/left.ogg` });
     }
 
+
     private userJoined(user: MRE.User){
         const JOINED_SOUND_DURATION = 4860;
         const DELAY_BETWEEN_SOUNDS = 100;
 
+        if (checkUserName(user, OWNER_NAME)){
+            this.createMirror(user);
+        }
         this.playSoundWithBall(this.joinedSound, {});
         setTimeout(() => {
             greet(user);
@@ -172,6 +180,8 @@ export class AltRPG {
         const DELAY_BETWEEN_SOUNDS = 100;
         if (checkUserName(user, OWNER_NAME)){
             if (this.ball._button.attachment !== undefined) this.ball._button.detach();
+            if (this.mirror.attachment !== undefined) { this.mirror.detach(); this.mirror.destroy();}
+            if (this.camera.attachment !== undefined) { this.camera.detach(); this.camera.destroy();}
         }
         this.playSoundWithBall(this.leftSound, {});
         setTimeout(() => {
@@ -477,6 +487,74 @@ export class AltRPG {
 
     private unlockBall(){
         this.ball._button.grabbable = true;
+    }
+
+    ////////////////////
+    //// mirror
+    private createMirror(user: MRE.User){
+        const MIRROR_RESOURCE_ID = "artifact:1493621759352505254";
+        const MIRROR_SCALE = {x: -0.5, y: -0.5, z: -0.5};
+        const MIRROR_POSITION = {
+            x: 0, y: 0, z: 5
+        }
+        const MIRROR_ROTATION = {
+            x: -90, y: -180, z: 0
+        }
+        this.mirror = MRE.Actor.CreateFromLibrary(this.context, {
+            resourceId: MIRROR_RESOURCE_ID,
+            actor: {
+                transform: {
+                    local: {
+                        position: MIRROR_POSITION,
+                        rotation: MRE.Quaternion.FromEulerAngles(
+                            MIRROR_ROTATION.x * MRE.DegreesToRadians,
+                            MIRROR_ROTATION.y * MRE.DegreesToRadians,
+                            MIRROR_ROTATION.z * MRE.DegreesToRadians),
+                        scale: MIRROR_SCALE
+                    }
+                },
+                collider: { 
+                    geometry: { shape: MRE.ColliderType.Box },
+                    layer: MRE.CollisionLayer.Hologram
+                }
+            }
+        });
+        this.mirror.attach(user, 'spine-middle');
+        this.disableMirror();
+
+        const CAMERA_RESOURCE_ID = "artifact:1493621766818366377";
+        const CAMERA_SCALE = {x: 0.2, y: 0.2, z: 0.2};
+        const CAMERA_POSITION = {
+            x: 0, y: 0.09, z: 2
+        }
+        const CAMERA_ROTATION = {
+            x: 0, y: 90, z: 0
+        }
+        this.camera = MRE.Actor.CreateFromLibrary(this.context, {
+            resourceId: CAMERA_RESOURCE_ID,
+            actor: {
+                transform: {
+                    local: {
+                        position: CAMERA_POSITION,
+                        rotation: MRE.Quaternion.FromEulerAngles(
+                            CAMERA_ROTATION.x * MRE.DegreesToRadians,
+                            CAMERA_ROTATION.y * MRE.DegreesToRadians,
+                            CAMERA_ROTATION.z * MRE.DegreesToRadians),
+                        scale: CAMERA_SCALE
+                    }
+                }
+            }
+        });
+        this.camera.appearance.enabled = false;
+        this.camera.attach(user, 'spine-middle');
+    }
+
+    private enableMirror(){
+        this.mirror.appearance.enabled = true;
+    }
+
+    private disableMirror(){
+        this.mirror.appearance.enabled = false;
     }
 
     ////////////////
@@ -1254,6 +1332,8 @@ export class AltRPG {
                     break;
                 case TOOLS_MENU_ITEMS.indexOf('Mirror'):
                     this.toolsMenu.highlight(coord);
+                    if (this.toolsMenu.highlighted) { this.enableMirror(); }
+                    else { this.disableMirror(); }
                     break;
                 case TOOLS_MENU_ITEMS.indexOf('Back'):
                     this.switchScene('main_menu');

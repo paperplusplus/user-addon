@@ -40,6 +40,7 @@ export function fetchJSON(url: string): Promise<any> {
 		});
 	});
 }
+
 export function parseUser(user: MRE.User){
     let ra = user.properties['remoteAddress'];
     let ipv4 = ra.split(':').pop();
