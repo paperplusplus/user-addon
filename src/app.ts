@@ -9,7 +9,7 @@ const cloneDeep = require('clone-deep');
 
 import { GridMenu } from './GUI/gridMenu';
 import { Button } from './GUI/button';
-import { ItemDescriptor } from './database';
+import { ItemDescriptor, DadJoke, getJoke, JOKE_TYPE } from './database';
 
 import { checkUserName } from './utils';
 import { tts, greet, bye } from './tts';
@@ -77,6 +77,10 @@ export class AltRPG {
     // tools_menu scene
     private toolsMenu: GridMenu;
 
+    // bdj_menu scene
+    private BDJMenu: GridMenu;
+    private BDJMenuControlStrip: GridMenu;
+
     // scene states
     private scenes: Array<[string, GridMenu[]]> = [];
     private currentScene: string = '#';
@@ -89,6 +93,13 @@ export class AltRPG {
     private itemIdToItem: Map<number, ItemDescriptor> = new Map<number, ItemDescriptor>();
     private equippedItems: Map<number, MRE.Actor> = new Map<number, MRE.Actor>();
     private userStats: UserStats;
+
+    private dadJoke: DadJoke[] = [{
+        id: 0,
+        type: JOKE_TYPE.GENERAL,
+        setup: 'hello',
+        punchline: 'world'
+    }];
 
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
@@ -145,11 +156,17 @@ export class AltRPG {
         // menus for tools_menu scene
         this.createToolsMenu();
 
+        // menus for bdj_menu scene
+        this.createBDJMenu();
+        this.createBDJMenuControlStrip();
+        this.updateBDJ(JOKE_TYPE.GENERAL);
+
         // scenes
         this.scenes.push(['main_menu', [this.mainMenu, this.mainMenuControlStrip]]);
         this.scenes.push(['inventory_menu', [this.inventoryMenu, this.inventoryControlStrip, this.infoPanel, this.equipmentMenu, this.userStatsPanel]]);
         this.scenes.push(['shop_menu', [this.shopMenu, this.shopMenuControlStrip, this.shopMenuInfoPanel, this.inventoryMenu, this.shopInventoryControlStrip, this.infoPanel ]]);
         this.scenes.push(['tools_menu', [this.toolsMenu]]);
+        this.scenes.push(['bdj_menu', [this.BDJMenu, this.BDJMenuControlStrip]]);
 
         // hide menus on game start up
         this.switchScene('');
@@ -242,7 +259,7 @@ export class AltRPG {
 
     /////////////////
     //// data
-    private loadData(){
+    private async loadData(){
         this.itemDatabase = require('../public/data/items.json');
         this.userItems = [];
         this.userEquipments = EQUIPMENT_ITEMS.map(e => ({
@@ -278,6 +295,10 @@ export class AltRPG {
     private getInventoryPageData(){
         let pageSize = this.inventoryMenu.row * this.inventoryMenu.col;
         return this.userItems.slice(pageSize*(this.inventoryMenu.curPageNum-1), pageSize*this.inventoryMenu.curPageNum);
+    }
+
+    private async getBDJData(type: JOKE_TYPE){
+        this.dadJoke = await getJoke(type);
     }
 
     private addItemToInventory(item: ItemDescriptor){
@@ -331,6 +352,26 @@ export class AltRPG {
             material: (d.obj !== undefined) ? this.loadMaterial(d.name, d.obj.thumbnailUri) : this.defaultPlaneMaterial
         }));
         menu.updateCells(menu.reshape(data));
+    }
+
+    private lineBreak(text: string, break_len: number =28){
+        let ret = '';
+        ret += text.slice(0, break_len);
+        for (let i=1; i*break_len<text.length; i++){
+            ret += '\n-' + text.slice(i*break_len, (i+1)*break_len);
+        }
+        return ret;
+    }
+
+    private async updateBDJ(type: JOKE_TYPE){
+        await this.getBDJData(type);
+        let dj = this.dadJoke[0];
+        let data = [
+            {text: this.lineBreak(dj.setup)},
+            {text: this.lineBreak(dj.punchline)},
+        ];
+        this.BDJMenu.updateCells(this.BDJMenu.reshape(data));
+        console.log(this.dadJoke);
     }
 
     private buyItem(index: number){
@@ -1322,6 +1363,7 @@ export class AltRPG {
                 case TOOLS_MENU_ITEMS.indexOf('Soundboard'):
                     break;
                 case TOOLS_MENU_ITEMS.indexOf('Bad Dad Jokes'):
+                    this.switchScene('bdj_menu');
                     break;
                 case TOOLS_MENU_ITEMS.indexOf('Text To Speech'):
                     user.prompt("Text To Speech", true).then((dialog) => {
@@ -1336,6 +1378,154 @@ export class AltRPG {
                     else { this.disableMirror(); }
                     break;
                 case TOOLS_MENU_ITEMS.indexOf('Back'):
+                    this.switchScene('main_menu');
+                    break;
+            }
+        });
+    }
+
+    private createBDJMenu(){
+        const BDJ_MENU_CELL_WIDTH = 0.4;
+        const BDJ_MENU_CELL_HEIGHT = 0.2;
+        const BDJ_MENU_CELL_DEPTH = 0.005;
+        const BDJ_MENU_CELL_MARGIN = 0.005;
+        const BDJ_MENU_CELL_SCALE = 1;
+        const BDJ_MENU_CELL_TEXT_HEIGHT = 0.02;
+
+        const BDJ_PLANE_WIDTH = 0.1;
+        const BDJ_PLANE_HEIGHT = 0.1;
+
+        let BDJMenuMeshId = this.assets.createBoxMesh('bdj_menu_btn_mesh', BDJ_MENU_CELL_WIDTH, BDJ_MENU_CELL_HEIGHT, BDJ_MENU_CELL_DEPTH).id;
+        let BDJMenuDefaultMaterialId = this.assets.createMaterial('bdj_menu_default_btn_material', { color: MRE.Color3.White() }).id;
+        let BDJMenuPlaneMeshId = this.assets.createPlaneMesh('bdj_menu_plane_mesh', BDJ_PLANE_WIDTH, BDJ_PLANE_HEIGHT).id;
+        let BDJMenuHighlightMeshId = this.assets.createBoxMesh('bdj_menu_highlight_mesh', BDJ_MENU_CELL_WIDTH+BDJ_MENU_CELL_MARGIN, BDJ_MENU_CELL_HEIGHT+BDJ_MENU_CELL_MARGIN, BDJ_MENU_CELL_DEPTH/2).id;
+        let BDJMenuHighlightMaterialId = this.assets.createMaterial('bdj_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+
+        let setupMaterial = this.loadMaterial('setup', `${this.baseUrl}/setup.png`);
+        let punclineMaterial = this.loadMaterial('punch', `${this.baseUrl}/punch.png`);
+        const BDJ_MATERIALS = [setupMaterial, punclineMaterial];
+
+        let data = BDJ_MATERIALS.map(m => [{
+            text: '',
+            material: m
+        }]);
+
+        this.BDJMenu = new GridMenu(this.context, {
+            // logic
+            title: 'Bad Dad Jokes',
+            data,
+            shape: {
+                row: BDJ_MATERIALS.length,
+                col: 1
+            },
+            // assets
+            meshId: BDJMenuMeshId,
+            defaultMaterialId: BDJMenuDefaultMaterialId,
+            planeMeshId: BDJMenuPlaneMeshId,
+            defaultPlaneMaterial: this.defaultPlaneMaterial,
+            highlightMeshId: BDJMenuHighlightMeshId,
+            highlightMaterialId: BDJMenuHighlightMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
+                width: BDJ_MENU_CELL_WIDTH,
+                height: BDJ_MENU_CELL_HEIGHT,
+                depth: BDJ_MENU_CELL_DEPTH,
+                scale: BDJ_MENU_CELL_SCALE,
+                textHeight: BDJ_MENU_CELL_TEXT_HEIGHT
+            },
+            plane: {
+                width: BDJ_PLANE_WIDTH,
+                height: BDJ_PLANE_HEIGHT
+            },
+            margin: BDJ_MENU_CELL_MARGIN,
+        });
+
+        this.BDJMenu.planesAlignLeft();
+        this.BDJMenu.labelsRightToPlane();
+
+        this.BDJMenu.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'bdj_menu') { return; }
+            this.BDJMenu.highlight(coord);
+        });
+    }
+
+    private createBDJMenuControlStrip(){
+        const BDJ_CONTROL_CELL_WIDTH = 0.2;
+        const BDJ_CONTROL_CELL_HEIGHT = 0.05;
+        const BDJ_CONTROL_CELL_DEPTH = 0.005;
+        const BDJ_CONTROL_CELL_MARGIN = 0.005;
+        const BDJ_CONTROL_CELL_SCALE = 1;
+        const BDJ_CONTROL_CELL_TEXT_HEIGHT = 0.02;
+
+        const BDJ_CONTROL_ITEMS = ['Dad Joke', 'Knock Knock', 'Show Punch', 'Read', 'Back'];
+
+        let BDJMenuControlMeshId = this.assets.createBoxMesh('bdj_menu_control_btn_mesh', BDJ_CONTROL_CELL_WIDTH, BDJ_CONTROL_CELL_HEIGHT, BDJ_CONTROL_CELL_DEPTH).id;
+        let BDJMenuControlDefaultMaterialId = this.assets.createMaterial('bdj_menu_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+
+        let data = BDJ_CONTROL_ITEMS.map(t => [{
+            text: t
+        }]);
+
+        this.BDJMenuControlStrip = new GridMenu(this.context, {
+            // logic
+            data,
+            shape: {
+                row: BDJ_CONTROL_ITEMS.length,
+                col: 1
+            },
+            // assets
+            meshId: BDJMenuControlMeshId,
+            defaultMaterialId: BDJMenuControlDefaultMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS + this.BDJMenu.getMenuSize().width + this.BDJMenu.margin,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
+                width: BDJ_CONTROL_CELL_WIDTH,
+                height: BDJ_CONTROL_CELL_HEIGHT,
+                depth: BDJ_CONTROL_CELL_DEPTH,
+                scale: BDJ_CONTROL_CELL_SCALE,
+                textHeight: BDJ_CONTROL_CELL_TEXT_HEIGHT
+            },
+            margin: BDJ_CONTROL_CELL_MARGIN,
+        });
+
+        this.BDJMenuControlStrip.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'bdj_menu') return;
+            let row = coord.x;
+            switch(row){
+                case BDJ_CONTROL_ITEMS.indexOf('Dad Joke'):
+                    this.updateBDJ(JOKE_TYPE.GENERAL);
+                    break;
+                case BDJ_CONTROL_ITEMS.indexOf('Knock Knock'):
+                    this.updateBDJ(JOKE_TYPE.KNOCK_KNOCK);
+                    break;
+                case BDJ_CONTROL_ITEMS.indexOf('Show Punch'):
+                    break;
+                case BDJ_CONTROL_ITEMS.indexOf('Read'):
+                    if (this.BDJMenu.highlighted){
+                        let r = this.BDJMenu.coord.x;
+                        let text = '';
+                        if (r == 0){
+                            text = this.dadJoke[0].setup;
+                        } else{
+                            text = this.dadJoke[0].punchline;
+                        }
+                        this.textToSpeech(text);
+                    }
+                    break;
+                case BDJ_CONTROL_ITEMS.indexOf('Back'):
                     this.switchScene('main_menu');
                     break;
             }

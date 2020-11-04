@@ -1,6 +1,7 @@
 import fs from 'fs';
 import superagent from 'superagent';
 import cheerio from 'cheerio';
+import { fetchJSON } from './utils';
 
 const email = process.env['EMAIL'];
 const password = process.env['PASSWORD'];
@@ -138,9 +139,27 @@ export class AltVRCrawler{
     }
 }
 
-(async ()=>{
-    let crawler = new AltVRCrawler();
-    crawler.get_kits([
-        '1493616657610834914',
-    ]);
-})();
+export type DadJoke = {
+  id: number,
+  type: string,
+  setup: string,
+  punchline: string
+}
+
+export enum JOKE_TYPE {
+    KNOCK_KNOCK = "knock-knock",
+    GENERAL = "general"
+}
+
+export async function getJoke(type: JOKE_TYPE): Promise<DadJoke[]>{
+    let url = "http://us-central1-dadsofunny.cloudfunctions.net/DadJokes/random/type";
+    const res = await fetchJSON(`${url}/${type}`);
+    return res;
+}
+
+// (async ()=>{
+//     let crawler = new AltVRCrawler();
+//     crawler.get_kits([
+//         '1493616657610834914',
+//     ]);
+// })();

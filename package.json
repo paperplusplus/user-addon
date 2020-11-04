@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc --build",
     "start": "node -r dotenv/config .",
-    "crawl": "node -r dotenv/config build/crawler.js"
+    "crawl": "node -r dotenv/config build/database.js"
   },
   "author": "",
   "license": "ISC",
