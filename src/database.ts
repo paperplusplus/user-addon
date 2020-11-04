@@ -1,3 +1,4 @@
+import fs from 'fs';
 import superagent from 'superagent';
 import cheerio from 'cheerio';
 
@@ -49,9 +50,22 @@ export class AltVRCrawler{
             let text = await this.get_kit(kits[i], cookie);
             let il = this.parseText(text)
             items.push(...il);
-            console.log(kits[i]);
         }
-        console.log(JSON.stringify(items));
+        items = items.map((e:any, i:number) => ({
+            obj: {
+                thumbnailUri: e.thumbnailUri,
+                resourceId: `artifact:${e.artifactId}`,
+                attachPoint: 'head'
+            },
+            id: i,
+            name: e.name,
+            type: 'Helmet',
+            defense: 1,
+            count: 1,
+            cost: 1
+        }));
+        JSON.stringify(items, null, 4)
+        fs.writeFile('./public/data/data.json', JSON.stringify(items, null, 4), (err)=>{if(err) console.log(err);});
     }
 
     private async get_token(){
@@ -124,22 +138,9 @@ export class AltVRCrawler{
     }
 }
 
-
-// import fs from 'fs';
-
-// let o = require('../public/data/data.json');
-// o = o.map((e:any, i:number) => ({
-//     obj: {
-//         thumbnailUri: e.thumbnailUri,
-//         resourceId: `artifact:${e.artifactId}`,
-//         attachPoint: 'head'
-//     },
-//     id: i,
-//     name: e.name,
-//     type: 'Helmet',
-//     defense: 1,
-//     count: 1,
-//     cost: 1
-// })).splice(1,50);
-
-// fs.writeFile('./public/data/items.json', JSON.stringify(o, null, 4), (err)=>{if(err) console.log(err);});
+(async ()=>{
+    let crawler = new AltVRCrawler();
+    crawler.get_kits([
+        '1493616657610834914',
+    ]);
+})();
