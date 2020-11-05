@@ -20,7 +20,7 @@
         },
         "id": 2,
         "name": "Ammo 02",
-        "type": "Helmet",
+        "type": "Weapon",
         "defense": 1,
         "count": 1,
         "cost": 1
@@ -33,7 +33,7 @@
         },
         "id": 3,
         "name": "Ammo 03",
-        "type": "Helmet",
+        "type": "Ring",
         "defense": 1,
         "count": 1,
         "cost": 1
@@ -46,7 +46,7 @@
         },
         "id": 4,
         "name": "Apple",
-        "type": "Helmet",
+        "type": "Armor",
         "defense": 1,
         "count": 1,
         "cost": 1

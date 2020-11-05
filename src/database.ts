@@ -3,6 +3,7 @@ import path from 'path';
 import superagent from 'superagent';
 import cheerio from 'cheerio';
 import { fetchJSON } from './utils';
+const { getAudioDurationInSeconds } = require('get-audio-duration');
 
 const email = process.env['EMAIL'];
 const password = process.env['PASSWORD'];
@@ -160,7 +161,8 @@ export async function getJoke(type: JOKE_TYPE): Promise<DadJoke[]>{
 
 export type Meme = {
     name: string,
-    uri: string
+    uri: string,
+    duration?: number
 }
 
 export class MemeCrawler{
@@ -218,8 +220,22 @@ export class MemeCrawler{
         return new Promise<string>(function(resolve, reject) {
             let fileName = path.basename(uri);
             let filePath = `./public/data/${fileName}`;
-            superagent.get(uri).set(headers).pipe(fs.createWriteStream(filePath));
+            if (!fs.existsSync(filePath)){
+                console.log(filePath);
+                superagent.get(uri).set(headers).pipe(fs.createWriteStream(filePath));
+            }
         });
+    }
+
+    public async duration(items: Meme[]){
+        for (let i=0; i<items.length; i++){
+            let fileName = path.basename(items[i].uri);
+            let filePath = `./public/data/${fileName}`;
+            await getAudioDurationInSeconds(filePath).then((duration: number) => {
+                items[i].duration = duration;
+            });
+        }
+        return items;
     }
 }
 
@@ -234,10 +250,11 @@ export class MemeCrawler{
 //     let crawler = new MemeCrawler();
 //     // let memes = await crawler.crawl();
 //     // fs.writeFile('./public/data/meme.json', JSON.stringify(memes, null, 4), (err)=>{if(err) console.log(err);});
-//     // let memes: Meme[] = require('../public/data/meme.json');
-//     // console.log(memes);
+//     // let memes: Meme[] = require('../public/data/memes.json');
 //     // for (let i=0; i<memes.length; i++){
-//     //     console.log(memes[i].name);
 //     //     crawler.downloadFile(memes[i].uri);
 //     // }
+//     let memes: Meme[] = require('../public/data/memes.json');
+//     await crawler.duration(memes);
+//     fs.writeFile('./public/data/memes2.json', JSON.stringify(memes, null, 4), (err)=>{if(err) console.log(err);});
 // })();

@@ -9,7 +9,7 @@ const cloneDeep = require('clone-deep');
 
 import { GridMenu } from './GUI/gridMenu';
 import { Button } from './GUI/button';
-import { ItemDescriptor, DadJoke, getJoke, JOKE_TYPE } from './database';
+import { ItemDescriptor, DadJoke, getJoke, JOKE_TYPE, Meme, MemeCrawler } from './database';
 
 import { checkUserName } from './utils';
 import { tts, greet, bye } from './tts';
@@ -44,9 +44,11 @@ export class AltRPG {
     private joinedSound: MRE.Sound;
     private leftSound: MRE.Sound;
     private defaultPlaneMaterial: MRE.Material;
-    // texture cache
+    // cache
     private textures: Map<string, MRE.Texture>;
     private materials: Map<string, MRE.Material>;
+    private sounds: Map<string, MRE.Sound>;
+    private playing: Map<string, MRE.MediaInstance>;
 
 
     // ball
@@ -81,6 +83,10 @@ export class AltRPG {
     private BDJMenu: GridMenu;
     private BDJMenuControlStrip: GridMenu;
 
+    // soundboard scene
+    private soundboardMenu: GridMenu;
+    private soundboardMenuControlStrip: GridMenu;
+
     // scene states
     private scenes: Array<[string, GridMenu[]]> = [];
     private currentScene: string = '#';
@@ -101,6 +107,9 @@ export class AltRPG {
         punchline: 'world'
     }];
 
+    private memesDatabase: Meme[];
+    private memes: Meme[];
+
     // constructor
 	constructor(private _context: MRE.Context, private params: MRE.ParameterSet, _baseUrl: string) {
         this.context = _context;
@@ -110,6 +119,8 @@ export class AltRPG {
         // repetition check for texture reuse
         this.textures = new Map<string, MRE.Texture>();
         this.materials = new Map<string, MRE.Material>();
+        this.sounds = new Map<string, MRE.Sound>();
+        this.playing = new Map<string, MRE.MediaInstance>();
 
         // init
         this.context.onStarted(() => this.init());
@@ -161,12 +172,18 @@ export class AltRPG {
         this.createBDJMenuControlStrip();
         this.updateBDJ(JOKE_TYPE.GENERAL);
 
+        // menus for soundboard_menu scene
+        this.createSoundboardMenu();
+        this.createSoundboardMenuControlStrip();
+        this.updateSoundboard( this.getMemePageData() );
+
         // scenes
         this.scenes.push(['main_menu', [this.mainMenu, this.mainMenuControlStrip]]);
         this.scenes.push(['inventory_menu', [this.inventoryMenu, this.inventoryControlStrip, this.infoPanel, this.equipmentMenu, this.userStatsPanel]]);
         this.scenes.push(['shop_menu', [this.shopMenu, this.shopMenuControlStrip, this.shopMenuInfoPanel, this.inventoryMenu, this.shopInventoryControlStrip, this.infoPanel ]]);
         this.scenes.push(['tools_menu', [this.toolsMenu]]);
         this.scenes.push(['bdj_menu', [this.BDJMenu, this.BDJMenuControlStrip]]);
+        this.scenes.push(['soundboard_menu', [this.soundboardMenu, this.soundboardMenuControlStrip]]);
 
         // hide menus on game start up
         this.switchScene('');
@@ -257,6 +274,19 @@ export class AltRPG {
         return material;
     }
 
+    /////////////////////
+    //// sound
+    private loadSound(name: string, uri: string){
+        let sound
+        if(!this.sounds.has('sound_'+name)){
+            sound = this.assets.createSound(name, { uri });
+            this.sounds.set('sound_'+name, sound);
+        }else{
+            sound = this.sounds.get('sound_'+name);
+        }
+        return sound;
+    }
+
     /////////////////
     //// data
     private async loadData(){
@@ -274,6 +304,9 @@ export class AltRPG {
             defense: 100,
             coins: 100
         }
+
+        this.memesDatabase = require('../public/data/memes.json');
+        this.memes = this.memesDatabase;
     }
 
     private getItemDescription(item: ItemDescriptor){
@@ -299,6 +332,19 @@ export class AltRPG {
 
     private async getBDJData(type: JOKE_TYPE){
         this.dadJoke = await getJoke(type);
+    }
+
+    private searchMeme(search: string = ''){
+        if(!search.length){
+            this.memes = this.memesDatabase;
+        }else{
+            this.memes = this.memesDatabase.filter(d => d.name.toLowerCase().includes(search));
+        }
+    }
+
+    private getMemePageData(){
+        let pageSize = this.soundboardMenu.row * this.soundboardMenu.col;
+        return this.memes.slice(pageSize*(this.soundboardMenu.curPageNum-1), pageSize*this.soundboardMenu.curPageNum);
     }
 
     private addItemToInventory(item: ItemDescriptor){
@@ -372,6 +418,13 @@ export class AltRPG {
         ];
         this.BDJMenu.updateCells(this.BDJMenu.reshape(data));
         console.log(this.dadJoke);
+    }
+
+    private updateSoundboard(pageData: Meme[]){
+        let data = pageData.map(d => ({
+            text: this.lineBreak(d.name, 10)
+        }));
+        this.soundboardMenu.updateCells(this.soundboardMenu.reshape(data));
     }
 
     private buyItem(index: number){
@@ -456,6 +509,23 @@ export class AltRPG {
         }
     }
 
+    private playMeme(index: number){
+        let item = this.memes[index];
+        if (item === undefined) {return;}
+        let uri = `${this.baseUrl}/data/${path.basename(item.uri)}`;
+        console.log(uri);
+        let sound = this.loadSound(item.name, uri);
+        let mediaInstance = this.playSoundWithBall(sound, {});
+        this.playing.set('sound_'+item.name, mediaInstance);
+        setTimeout(()=>{ 
+            this.playing.delete('sound_'+item.name);
+        }, item.duration*1000);
+    }
+
+    private stopMemes(){
+        this.playing.forEach(m => {m.stop()})
+    }
+
     /////////////////
     //// ball
     private createBall(){
@@ -504,10 +574,11 @@ export class AltRPG {
         });
     }
 
-    private playSoundWithBall(musicAsset: MRE.Sound, options?: playSoundOptions){
-        let volume = (options.volume == undefined) ? 0.7 : options.volume;
-        let rolloffStartDistance = (options.rolloffStartDistance == undefined) ? 15 : options.rolloffStartDistance;
-        this.ball._button.startSound(musicAsset.id, {
+    private playSoundWithBall(musicAsset: MRE.Sound, options: playSoundOptions){
+        if(musicAsset === undefined) { return; }
+        let volume = (options.volume === undefined) ? 0.7 : options.volume;
+        let rolloffStartDistance = (options.rolloffStartDistance === undefined) ? 15 : options.rolloffStartDistance;
+        return this.ball._button.startSound(musicAsset.id, {
             volume,
             rolloffStartDistance,
             looping: false
@@ -857,8 +928,12 @@ export class AltRPG {
             let row = coord.x;
             switch(row){
                 case INVENTORY_CONTROL_ITEMS.indexOf('Next'):
+                    this.inventoryMenu.incrementPageNum(this.userItems.length);
+                    this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData() );
                     break;
                 case INVENTORY_CONTROL_ITEMS.indexOf('Prev'):
+                    this.inventoryMenu.decrementPageNum();
+                    this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData() );
                     break;
                 case INVENTORY_CONTROL_ITEMS.indexOf('Equip'):
                     if (this.inventoryMenu.highlighted){
@@ -1361,6 +1436,7 @@ export class AltRPG {
             let row = coord.x;
             switch(row){
                 case TOOLS_MENU_ITEMS.indexOf('Soundboard'):
+                    this.switchScene('soundboard_menu');
                     break;
                 case TOOLS_MENU_ITEMS.indexOf('Bad Dad Jokes'):
                     this.switchScene('bdj_menu');
@@ -1532,7 +1608,156 @@ export class AltRPG {
         });
     }
 
+    private createSoundboardMenu(){
+        const SOUNDBOARD_DIMENSIONS = new Vector2(6,6);
+        const SOUNDBOARD_CELL_WIDTH = 0.08;
+        const SOUNDBOARD_CELL_HEIGHT = 0.08;
+        const SOUNDBOARD_CELL_DEPTH = 0.005;
+        const SOUNDBOARD_CELL_MARGIN = 0.004;
+        const SOUNDBOARD_CELL_SCALE = 1;
+
+        let soundboardMenuMeshId = this.assets.createBoxMesh('sounboard_menu_btn_mesh', SOUNDBOARD_CELL_WIDTH, SOUNDBOARD_CELL_HEIGHT, SOUNDBOARD_CELL_DEPTH).id;
+        let soundboardMenuDefaultMaterialId = this.assets.createMaterial('sounboard_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let soundboardMenuHighlightMeshId = this.assets.createBoxMesh('sounboard_menu_highlight_mesh', SOUNDBOARD_CELL_WIDTH+SOUNDBOARD_CELL_MARGIN, SOUNDBOARD_CELL_HEIGHT+SOUNDBOARD_CELL_MARGIN, SOUNDBOARD_CELL_DEPTH/2).id;
+        let soundboardMenuHighlightMaterialId = this.assets.createMaterial('sounboard_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+        
+        this.soundboardMenu = new GridMenu(this.context, {
+            // logic
+            name: 'soundboard',
+            title: 'Soundboard',
+            shape: {
+                row: SOUNDBOARD_DIMENSIONS.x,
+                col: SOUNDBOARD_DIMENSIONS.y
+            },
+            // assets
+            meshId: soundboardMenuMeshId,
+            defaultMaterialId: soundboardMenuDefaultMaterialId,
+            highlightMeshId: soundboardMenuHighlightMeshId,
+            highlightMaterialId: soundboardMenuHighlightMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset:{
+                x: RADIUS,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
+                width: SOUNDBOARD_CELL_WIDTH,
+                height: SOUNDBOARD_CELL_HEIGHT,
+                depth: SOUNDBOARD_CELL_DEPTH,
+                scale: SOUNDBOARD_CELL_SCALE,
+                textColor: MRE.Color3.White(),
+                textHeight: 0.01,
+                textAnchor: MRE.TextAnchorLocation.MiddleCenter
+            },
+            highlight: {
+                depth: SOUNDBOARD_CELL_DEPTH/2,
+            },
+            margin: SOUNDBOARD_CELL_MARGIN,
+        });
+        this.soundboardMenu.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'soundboard_menu') { return; }
+            this.soundboardMenu.highlight(coord);
+            let index = this.soundboardMenu.getHighlightedIndex(this.shopMenu.coord);
+        });
+    }
+
+    private createSoundboardMenuControlStrip(){
+        const SOUNDBOARD_CONTROL_CELL_WIDTH = 0.1;
+        const SOUNDBOARD_CONTROL_CELL_HEIGHT = 0.05;
+        const SOUNDBOARD_CONTROL_CELL_DEPTH = 0.005;
+        const SOUNDBOARD_CONTROL_CELL_MARGIN = 0.005;
+        const SOUNDBOARD_CONTROL_CELL_SCALE = 1;
+        const SOUNDBOARD_CONTROL_CELL_TEXT_HEIGHT = 0.02;
+
+        const SOUNDBOARD_CONTROL_ITEMS = ['', 'Search', 'Goto', 'Prev', 'Next', 'Play', 'Stop', 'Back'];
+
+        let soundboardMenuControlMeshId = this.assets.createBoxMesh('soundboard_menu_control_btn_mesh', SOUNDBOARD_CONTROL_CELL_WIDTH, SOUNDBOARD_CONTROL_CELL_HEIGHT, SOUNDBOARD_CONTROL_CELL_DEPTH).id;
+        let soundboardMenuControlDefaultMaterialId = this.assets.createMaterial('soundboard_menu_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+
+        let data = SOUNDBOARD_CONTROL_ITEMS.map(t => [{
+            text: t
+        }]);
+
+        this.soundboardMenuControlStrip = new GridMenu(this.context, {
+            // logic
+            data,
+            shape: {
+                row: SOUNDBOARD_CONTROL_ITEMS.length,
+                col: 1
+            },
+            // assets
+            meshId: soundboardMenuControlMeshId,
+            defaultMaterialId: soundboardMenuControlDefaultMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS + this.soundboardMenu.getMenuSize().width + this.soundboardMenu.margin,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
+                width: SOUNDBOARD_CONTROL_CELL_WIDTH,
+                height: SOUNDBOARD_CONTROL_CELL_HEIGHT,
+                depth: SOUNDBOARD_CONTROL_CELL_DEPTH,
+                scale: SOUNDBOARD_CONTROL_CELL_SCALE,
+                textHeight: SOUNDBOARD_CONTROL_CELL_TEXT_HEIGHT
+            },
+            margin: SOUNDBOARD_CONTROL_CELL_MARGIN,
+        });
+
+        this.soundboardMenuControlStrip.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'soundboard_menu') return;
+            let row = coord.x;
+            switch(row){
+                case SOUNDBOARD_CONTROL_ITEMS.indexOf('Search'):
+                    user.prompt("Search meme", true).then((dialog) => {
+                        if (dialog.submitted) {
+                            this.searchMeme(dialog.text);
+                            this.soundboardMenu.resetPageNum();
+                            this.updateSoundboard( this.getMemePageData() );
+                        }
+                    });
+                    break;
+                case SOUNDBOARD_CONTROL_ITEMS.indexOf('Goto'):
+                    user.prompt("Goto page", true).then((dialog) => {
+                        if (dialog.submitted) {
+                            let p = parseInt(dialog.text);
+                            if (p!==NaN){
+                                this.soundboardMenu.setPageNum(p, this.memes.length);
+                                this.updateSoundboard( this.getMemePageData() );
+                            }
+                        }
+                    });
+                    break;
+                case SOUNDBOARD_CONTROL_ITEMS.indexOf('Prev'):
+                    this.soundboardMenu.decrementPageNum();
+                    this.updateSoundboard( this.getMemePageData() );
+                    break;
+                case SOUNDBOARD_CONTROL_ITEMS.indexOf('Next'):
+                    this.soundboardMenu.incrementPageNum( this.memes.length );
+                    this.updateSoundboard( this.getMemePageData() );
+                    break;
+                case SOUNDBOARD_CONTROL_ITEMS.indexOf('Play'):
+                    if (this.soundboardMenu.highlighted){
+                        let index = this.soundboardMenu.getHighlightedIndex(this.soundboardMenu.coord);
+                        this.playMeme(index);
+                    }
+                    break;
+                case SOUNDBOARD_CONTROL_ITEMS.indexOf('Stop'):
+                    this.stopMemes();
+                    break;
+                case SOUNDBOARD_CONTROL_ITEMS.indexOf('Back'):
+                    this.switchScene('main_menu');
+                    break;
+            }
+        });
+    }
+
     private toggleMenu(){
+        console.log(this.currentScene, 'to', this.prevScene);
         if (this.currentScene == ''){
             this.root.transform.local.position = new Vector3(0, 0, 0);
             this.switchScene(this.prevScene);

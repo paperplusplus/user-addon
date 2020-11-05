@@ -417,4 +417,12 @@ export class GridMenu {
             this._curPageNum -= 1;
         }
     }
+
+    public resetPageNum(){
+        this._curPageNum = 1;
+    }
+
+    public setPageNum(page: number, total: number){
+        this._curPageNum = (page <= this.getPageNum(total) && page > 0) ? page : ((page <=0) ? 1 :this.getPageNum(total));
+    }
 }
