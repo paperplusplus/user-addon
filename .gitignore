@@ -8,3 +8,5 @@ build/
 *.blend1
 .DS_Store
 public/*.wav
+public/data/*.mp3
+public/data/*.ogg

@@ -203,7 +203,7 @@ export class AltRPG {
         if (checkUserName(user, OWNER_NAME)){
             this.createMirror(user);
         }
-        this.playSoundWithBall(this.joinedSound, {});
+        this.playSoundWithBall(this.joinedSound, {volume: 0.1});
         setTimeout(() => {
             greet(user);
         }, JOINED_SOUND_DURATION + DELAY_BETWEEN_SOUNDS);
@@ -217,7 +217,7 @@ export class AltRPG {
             if (this.mirror.attachment !== undefined) { this.mirror.detach(); this.mirror.destroy();}
             if (this.camera.attachment !== undefined) { this.camera.detach(); this.camera.destroy();}
         }
-        this.playSoundWithBall(this.leftSound, {});
+        this.playSoundWithBall(this.leftSound, {volume: 0.1});
         setTimeout(() => {
             bye(user);
         }, LEFT_SOUND_DURATION + DELAY_BETWEEN_SOUNDS);
@@ -515,7 +515,7 @@ export class AltRPG {
         let uri = `${this.baseUrl}/data/${path.basename(item.uri)}`;
         console.log(uri);
         let sound = this.loadSound(item.name, uri);
-        let mediaInstance = this.playSoundWithBall(sound, {});
+        let mediaInstance = this.playSoundWithBall(sound, {volume: 0.05, rolloffStartDistance: 1});
         this.playing.set('sound_'+item.name, mediaInstance);
         setTimeout(()=>{ 
             this.playing.delete('sound_'+item.name);
@@ -534,7 +534,7 @@ export class AltRPG {
             scale: {x: 1, y: 1, z: 1},
             text: '',
             enabled: true,
-            meshId: this.assets.createSphereMesh('ball_mesh', RADIUS).id,
+            meshId: this.assets.createSphereMesh('ball_mesh', RADIUS*0.6).id,
             materialId: this.assets.createMaterial('ball_material', { color: MRE.Color3.LightGray() }).id,
             layer: MRE.CollisionLayer.Hologram
         });
@@ -576,7 +576,7 @@ export class AltRPG {
 
     private playSoundWithBall(musicAsset: MRE.Sound, options: playSoundOptions){
         if(musicAsset === undefined) { return; }
-        let volume = (options.volume === undefined) ? 0.7 : options.volume;
+        let volume = (options.volume === undefined) ? 0.5 : options.volume;
         let rolloffStartDistance = (options.rolloffStartDistance === undefined) ? 15 : options.rolloffStartDistance;
         return this.ball._button.startSound(musicAsset.id, {
             volume,
@@ -1617,7 +1617,7 @@ export class AltRPG {
         const SOUNDBOARD_CELL_SCALE = 1;
 
         let soundboardMenuMeshId = this.assets.createBoxMesh('sounboard_menu_btn_mesh', SOUNDBOARD_CELL_WIDTH, SOUNDBOARD_CELL_HEIGHT, SOUNDBOARD_CELL_DEPTH).id;
-        let soundboardMenuDefaultMaterialId = this.assets.createMaterial('sounboard_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let soundboardMenuDefaultMaterialId = this.assets.createMaterial('sounboard_menu_default_btn_material', { color: MRE.Color3.DarkGray() }).id;
         let soundboardMenuHighlightMeshId = this.assets.createBoxMesh('sounboard_menu_highlight_mesh', SOUNDBOARD_CELL_WIDTH+SOUNDBOARD_CELL_MARGIN, SOUNDBOARD_CELL_HEIGHT+SOUNDBOARD_CELL_MARGIN, SOUNDBOARD_CELL_DEPTH/2).id;
         let soundboardMenuHighlightMaterialId = this.assets.createMaterial('sounboard_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
         

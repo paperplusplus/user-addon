@@ -1,6 +1,19 @@
 [
     {
         "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512730088669582/thumbnail_1150502900485587047_ammo_00.png",
+            "resourceId": "artifact:1150512730088669582",
+            "attachPoint": "head"
+        },
+        "id": 0,
+        "name": "Ammo 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
             "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512668809888129/thumbnail_1150502900485587047_ammo_01.png",
             "resourceId": "artifact:1150512668809888129",
             "attachPoint": "head"
@@ -20,7 +33,7 @@
         },
         "id": 2,
         "name": "Ammo 02",
-        "type": "Weapon",
+        "type": "Helmet",
         "defense": 1,
         "count": 1,
         "cost": 1
@@ -33,7 +46,7 @@
         },
         "id": 3,
         "name": "Ammo 03",
-        "type": "Ring",
+        "type": "Helmet",
         "defense": 1,
         "count": 1,
         "cost": 1
@@ -46,7 +59,7 @@
         },
         "id": 4,
         "name": "Apple",
-        "type": "Armor",
+        "type": "Helmet",
         "defense": 1,
         "count": 1,
         "cost": 1
@@ -644,6 +657,1410 @@
         },
         "id": 50,
         "name": "Letter 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513340712223711/thumbnail_1150502900485587047_letter_01.png",
+            "resourceId": "artifact:1150513340712223711",
+            "attachPoint": "head"
+        },
+        "id": 51,
+        "name": "Letter 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512880303473073/thumbnail_1150502900485587047_letter_02.png",
+            "resourceId": "artifact:1150512880303473073",
+            "attachPoint": "head"
+        },
+        "id": 52,
+        "name": "Letter 02",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513290674176981/thumbnail_1150502900485587047_letter_03.png",
+            "resourceId": "artifact:1150513290674176981",
+            "attachPoint": "head"
+        },
+        "id": 53,
+        "name": "Letter 03",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513153201669047/thumbnail_1150502900485587047_letter_04.png",
+            "resourceId": "artifact:1150513153201669047",
+            "attachPoint": "head"
+        },
+        "id": 54,
+        "name": "Letter 04",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513013808169425/thumbnail_1150502900485587047_letter_05.png",
+            "resourceId": "artifact:1150513013808169425",
+            "attachPoint": "head"
+        },
+        "id": 55,
+        "name": "Letter 05",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513023253742035/thumbnail_1150502900485587047_letter_06.png",
+            "resourceId": "artifact:1150513023253742035",
+            "attachPoint": "head"
+        },
+        "id": 56,
+        "name": "Letter 06",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512706801893769/thumbnail_1150502900485587047_letter_07.png",
+            "resourceId": "artifact:1150512706801893769",
+            "attachPoint": "head"
+        },
+        "id": 57,
+        "name": "Letter 07",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513305656230872/thumbnail_1150502900485587047_letter_08.png",
+            "resourceId": "artifact:1150513305656230872",
+            "attachPoint": "head"
+        },
+        "id": 58,
+        "name": "Letter 08",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513190606472127/thumbnail_1150502900485587047_letter_09.png",
+            "resourceId": "artifact:1150513190606472127",
+            "attachPoint": "head"
+        },
+        "id": 59,
+        "name": "Letter 09",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512875832345008/thumbnail_1150502900485587047_letter_10.png",
+            "resourceId": "artifact:1150512875832345008",
+            "attachPoint": "head"
+        },
+        "id": 60,
+        "name": "Letter 10",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513079012819423/thumbnail_1150502900485587047_letter_11.png",
+            "resourceId": "artifact:1150513079012819423",
+            "attachPoint": "head"
+        },
+        "id": 61,
+        "name": "Letter 11",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513083903377888/thumbnail_1150502900485587047_letter_12.png",
+            "resourceId": "artifact:1150513083903377888",
+            "attachPoint": "head"
+        },
+        "id": 62,
+        "name": "Letter 12",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512989699310027/thumbnail_1150502900485587047_letter_13.png",
+            "resourceId": "artifact:1150512989699310027",
+            "attachPoint": "head"
+        },
+        "id": 63,
+        "name": "Letter 13",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512673557840258/thumbnail_1150502900485587047_letter_14.png",
+            "resourceId": "artifact:1150512673557840258",
+            "attachPoint": "head"
+        },
+        "id": 64,
+        "name": "Letter 14",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512969667314119/thumbnail_1150502900485587047_letter_15.png",
+            "resourceId": "artifact:1150512969667314119",
+            "attachPoint": "head"
+        },
+        "id": 65,
+        "name": "Letter 15",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512783482159516/thumbnail_1150502900485587047_letter_16.png",
+            "resourceId": "artifact:1150512783482159516",
+            "attachPoint": "head"
+        },
+        "id": 66,
+        "name": "Letter 16",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513185925628862/thumbnail_1150502900485587047_letter_17.png",
+            "resourceId": "artifact:1150513185925628862",
+            "attachPoint": "head"
+        },
+        "id": 67,
+        "name": "Letter 17",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513069584024029/thumbnail_1150502900485587047_letter_18.png",
+            "resourceId": "artifact:1150513069584024029",
+            "attachPoint": "head"
+        },
+        "id": 68,
+        "name": "Letter 18",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513033789833685/thumbnail_1150502900485587047_letter_19.png",
+            "resourceId": "artifact:1150513033789833685",
+            "attachPoint": "head"
+        },
+        "id": 69,
+        "name": "Letter 19",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512663961272704/thumbnail_1150502900485587047_letter_20.png",
+            "resourceId": "artifact:1150512663961272704",
+            "attachPoint": "head"
+        },
+        "id": 70,
+        "name": "Letter 20",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512837538349479/thumbnail_1150502900485587047_letter_21.png",
+            "resourceId": "artifact:1150512837538349479",
+            "attachPoint": "head"
+        },
+        "id": 71,
+        "name": "Letter 21",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513345829274592/thumbnail_1150502900485587047_letter_22.png",
+            "resourceId": "artifact:1150513345829274592",
+            "attachPoint": "head"
+        },
+        "id": 72,
+        "name": "Letter 22",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513043336069591/thumbnail_1150502900485587047_letter_23.png",
+            "resourceId": "artifact:1150513043336069591",
+            "attachPoint": "head"
+        },
+        "id": 73,
+        "name": "Letter 23",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512940944720319/thumbnail_1150502900485587047_letter_24.png",
+            "resourceId": "artifact:1150512940944720319",
+            "attachPoint": "head"
+        },
+        "id": 74,
+        "name": "Letter 24",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512635825881466/thumbnail_1150502900485587047_letter_25.png",
+            "resourceId": "artifact:1150512635825881466",
+            "attachPoint": "head"
+        },
+        "id": 75,
+        "name": "Letter 25",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512984775197130/thumbnail_1150502900485587047_letter_26.png",
+            "resourceId": "artifact:1150512984775197130",
+            "attachPoint": "head"
+        },
+        "id": 76,
+        "name": "Letter 26",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512645321785724/thumbnail_1150502900485587047_letter_27.png",
+            "resourceId": "artifact:1150512645321785724",
+            "attachPoint": "head"
+        },
+        "id": 77,
+        "name": "Letter 27",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512832765231526/thumbnail_1150502900485587047_letter_28.png",
+            "resourceId": "artifact:1150512832765231526",
+            "attachPoint": "head"
+        },
+        "id": 78,
+        "name": "Letter 28",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513138211226547/thumbnail_1150502900485587047_letter_29.png",
+            "resourceId": "artifact:1150513138211226547",
+            "attachPoint": "head"
+        },
+        "id": 79,
+        "name": "Letter 29",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512891158331828/thumbnail_1150502900485587047_letter_30.png",
+            "resourceId": "artifact:1150512891158331828",
+            "attachPoint": "head"
+        },
+        "id": 80,
+        "name": "Letter 30",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512625516282232/thumbnail_1150502900485587047_letter_31.png",
+            "resourceId": "artifact:1150512625516282232",
+            "attachPoint": "head"
+        },
+        "id": 81,
+        "name": "Letter 31",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512715945476491/thumbnail_1150502900485587047_letter_32.png",
+            "resourceId": "artifact:1150512715945476491",
+            "attachPoint": "head"
+        },
+        "id": 82,
+        "name": "Letter 32",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513300329464791/thumbnail_1150502900485587047_letter_33.png",
+            "resourceId": "artifact:1150513300329464791",
+            "attachPoint": "head"
+        },
+        "id": 83,
+        "name": "Letter 33",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513143076619188/thumbnail_1150502900485587047_light_00.png",
+            "resourceId": "artifact:1150513143076619188",
+            "attachPoint": "head"
+        },
+        "id": 84,
+        "name": "Light 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512701215080839/thumbnail_1150502900485587047_light_01.png",
+            "resourceId": "artifact:1150512701215080839",
+            "attachPoint": "head"
+        },
+        "id": 85,
+        "name": "Light 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513162227811257/thumbnail_1150502900485587047_light_02.png",
+            "resourceId": "artifact:1150513162227811257",
+            "attachPoint": "head"
+        },
+        "id": 86,
+        "name": "Light 02",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513239595942857/thumbnail_1150502900485587047_light_03.png",
+            "resourceId": "artifact:1150513239595942857",
+            "attachPoint": "head"
+        },
+        "id": 87,
+        "name": "Light 03",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513053897327065/thumbnail_1150502900485587047_light_04.png",
+            "resourceId": "artifact:1150513053897327065",
+            "attachPoint": "head"
+        },
+        "id": 88,
+        "name": "Light 04",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513147799405494/thumbnail_1150502900485587047_lock_00.png",
+            "resourceId": "artifact:1150513147799405494",
+            "attachPoint": "head"
+        },
+        "id": 89,
+        "name": "Lock 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513099195810275/thumbnail_1150502900485587047_lock_01.png",
+            "resourceId": "artifact:1150513099195810275",
+            "attachPoint": "head"
+        },
+        "id": 90,
+        "name": "Lock 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512842596680105/thumbnail_1150502900485587047_manip.png",
+            "resourceId": "artifact:1150512842596680105",
+            "attachPoint": "head"
+        },
+        "id": 91,
+        "name": "Manip",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512823168663972/thumbnail_1150502900485587047_note_00.png",
+            "resourceId": "artifact:1150512823168663972",
+            "attachPoint": "head"
+        },
+        "id": 92,
+        "name": "Note 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512846983922090/thumbnail_1150502900485587047_note_01.png",
+            "resourceId": "artifact:1150512846983922090",
+            "attachPoint": "head"
+        },
+        "id": 93,
+        "name": "Note 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513009244766672/thumbnail_1150502900485587047_note_02.png",
+            "resourceId": "artifact:1150513009244766672",
+            "attachPoint": "head"
+        },
+        "id": 94,
+        "name": "Note 02",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513285322245076/thumbnail_1150502900485587047_note_03.png",
+            "resourceId": "artifact:1150513285322245076",
+            "attachPoint": "head"
+        },
+        "id": 95,
+        "name": "Note 03",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513315630285786/thumbnail_1150502900485587047_note_04.png",
+            "resourceId": "artifact:1150513315630285786",
+            "attachPoint": "head"
+        },
+        "id": 96,
+        "name": "Note 04",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513059526083034/thumbnail_1150502900485587047_note_05.png",
+            "resourceId": "artifact:1150513059526083034",
+            "attachPoint": "head"
+        },
+        "id": 97,
+        "name": "Note 05",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512753450942869/thumbnail_1150502900485587047_note_06.png",
+            "resourceId": "artifact:1150512753450942869",
+            "attachPoint": "head"
+        },
+        "id": 98,
+        "name": "Note 06",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512827958559141/thumbnail_1150502900485587047_note_07.png",
+            "resourceId": "artifact:1150512827958559141",
+            "attachPoint": "head"
+        },
+        "id": 99,
+        "name": "Note 07",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512720886366604/thumbnail_1150502900485587047_note_08.png",
+            "resourceId": "artifact:1150512720886366604",
+            "attachPoint": "head"
+        },
+        "id": 100,
+        "name": "Note 08",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512911005778360/thumbnail_1150502900485587047_note_09.png",
+            "resourceId": "artifact:1150512911005778360",
+            "attachPoint": "head"
+        },
+        "id": 101,
+        "name": "Note 09",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513209212404675/thumbnail_1150502900485587047_note_10.png",
+            "resourceId": "artifact:1150513209212404675",
+            "attachPoint": "head"
+        },
+        "id": 102,
+        "name": "Note 10",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513094372360674/thumbnail_1150502900485587047_note_11.png",
+            "resourceId": "artifact:1150513094372360674",
+            "attachPoint": "head"
+        },
+        "id": 103,
+        "name": "Note 11",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512793355551134/thumbnail_1150502900485587047_note_12.png",
+            "resourceId": "artifact:1150512793355551134",
+            "attachPoint": "head"
+        },
+        "id": 104,
+        "name": "Note 12",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512901199495606/thumbnail_1150502900485587047_note_13.png",
+            "resourceId": "artifact:1150512901199495606",
+            "attachPoint": "head"
+        },
+        "id": 105,
+        "name": "Note 13",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512744466743699/thumbnail_1150502900485587047_note_14.png",
+            "resourceId": "artifact:1150512744466743699",
+            "attachPoint": "head"
+        },
+        "id": 106,
+        "name": "Note 14",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512686325301636/thumbnail_1150502900485587047_number_00.png",
+            "resourceId": "artifact:1150512686325301636",
+            "attachPoint": "head"
+        },
+        "id": 107,
+        "name": "Number 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512711600177546/thumbnail_1150502900485587047_number_01.png",
+            "resourceId": "artifact:1150512711600177546",
+            "attachPoint": "head"
+        },
+        "id": 108,
+        "name": "Number 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512935701840318/thumbnail_1150502900485587047_number_02.png",
+            "resourceId": "artifact:1150512935701840318",
+            "attachPoint": "head"
+        },
+        "id": 109,
+        "name": "Number 02",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512620088852855/thumbnail_1150502900485587047_number_03.png",
+            "resourceId": "artifact:1150512620088852855",
+            "attachPoint": "head"
+        },
+        "id": 110,
+        "name": "Number 03",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513199615837121/thumbnail_1150502900485587047_number_04.png",
+            "resourceId": "artifact:1150513199615837121",
+            "attachPoint": "head"
+        },
+        "id": 111,
+        "name": "Number 04",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512573448192934/thumbnail_1150502900485587047_number_05.png",
+            "resourceId": "artifact:1150512573448192934",
+            "attachPoint": "head"
+        },
+        "id": 112,
+        "name": "Number 05",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513048033690072/thumbnail_1150502900485587047_number_06.png",
+            "resourceId": "artifact:1150513048033690072",
+            "attachPoint": "head"
+        },
+        "id": 113,
+        "name": "Number 06",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512925945889211/thumbnail_1150502900485587047_number_07.png",
+            "resourceId": "artifact:1150512925945889211",
+            "attachPoint": "head"
+        },
+        "id": 114,
+        "name": "Number 07",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513128715322289/thumbnail_1150502900485587047_number_08.png",
+            "resourceId": "artifact:1150513128715322289",
+            "attachPoint": "head"
+        },
+        "id": 115,
+        "name": "Number 08",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512959810699716/thumbnail_1150502900485587047_number_09.png",
+            "resourceId": "artifact:1150512959810699716",
+            "attachPoint": "head"
+        },
+        "id": 116,
+        "name": "Number 09",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512563482526628/thumbnail_1150502900485587047_number_10.png",
+            "resourceId": "artifact:1150512563482526628",
+            "attachPoint": "head"
+        },
+        "id": 117,
+        "name": "Number 10",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512817925783971/thumbnail_1150502900485587047_number_11.png",
+            "resourceId": "artifact:1150512817925783971",
+            "attachPoint": "head"
+        },
+        "id": 118,
+        "name": "Number 11",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512725500101005/thumbnail_1150502900485587047_number_12.png",
+            "resourceId": "artifact:1150512725500101005",
+            "attachPoint": "head"
+        },
+        "id": 119,
+        "name": "Number 12",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512945600397760/thumbnail_1150502900485587047_pencil.png",
+            "resourceId": "artifact:1150512945600397760",
+            "attachPoint": "head"
+        },
+        "id": 120,
+        "name": "Pencil",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513259854431182/thumbnail_1150502900485587047_pin.png",
+            "resourceId": "artifact:1150513259854431182",
+            "attachPoint": "head"
+        },
+        "id": 121,
+        "name": "Pin",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512851740262827/thumbnail_1150502900485587047_player.png",
+            "resourceId": "artifact:1150512851740262827",
+            "attachPoint": "head"
+        },
+        "id": 122,
+        "name": "Player",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512798120280479/thumbnail_1150502900485587047_potion_00.png",
+            "resourceId": "artifact:1150512798120280479",
+            "attachPoint": "head"
+        },
+        "id": 123,
+        "name": "Potion 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513181278340029/thumbnail_1150502900485587047_potion_01.png",
+            "resourceId": "artifact:1150513181278340029",
+            "attachPoint": "head"
+        },
+        "id": 124,
+        "name": "Potion 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512615223460211/thumbnail_1150502900485587047_power.png",
+            "resourceId": "artifact:1150512615223460211",
+            "attachPoint": "head"
+        },
+        "id": 125,
+        "name": "Power",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512886318105011/thumbnail_1150502900485587047_repair.png",
+            "resourceId": "artifact:1150512886318105011",
+            "attachPoint": "head"
+        },
+        "id": 126,
+        "name": "Repair",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512979532317129/thumbnail_1150502900485587047_save.png",
+            "resourceId": "artifact:1150512979532317129",
+            "attachPoint": "head"
+        },
+        "id": 127,
+        "name": "Save",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513270239527888/thumbnail_1150502900485587047_selection_ring_00.png",
+            "resourceId": "artifact:1150513270239527888",
+            "attachPoint": "head"
+        },
+        "id": 128,
+        "name": "Selection Ring 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513028723114452/thumbnail_1150502900485587047_selection_ring_01.png",
+            "resourceId": "artifact:1150513028723114452",
+            "attachPoint": "head"
+        },
+        "id": 129,
+        "name": "Selection Ring 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513254687048653/thumbnail_1150502900485587047_selection_ring_02.png",
+            "resourceId": "artifact:1150513254687048653",
+            "attachPoint": "head"
+        },
+        "id": 130,
+        "name": "Selection Ring 02",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513038630060502/thumbnail_1150502900485587047_selection_ring_03.png",
+            "resourceId": "artifact:1150513038630060502",
+            "attachPoint": "head"
+        },
+        "id": 131,
+        "name": "Selection Ring 03",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512739685237136/thumbnail_1150502900485587047_selection_ring_04.png",
+            "resourceId": "artifact:1150512739685237136",
+            "attachPoint": "head"
+        },
+        "id": 132,
+        "name": "Selection Ring 04",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512748929483156/thumbnail_1150502900485587047_selection_ring_05.png",
+            "resourceId": "artifact:1150512748929483156",
+            "attachPoint": "head"
+        },
+        "id": 133,
+        "name": "Selection Ring 05",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512964743201221/thumbnail_1150502900485587047_selection_ring_06.png",
+            "resourceId": "artifact:1150512964743201221",
+            "attachPoint": "head"
+        },
+        "id": 134,
+        "name": "Selection Ring 06",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512808060780961/thumbnail_1150502900485587047_selection_ring_07.png",
+            "resourceId": "artifact:1150512808060780961",
+            "attachPoint": "head"
+        },
+        "id": 135,
+        "name": "Selection Ring 07",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512856429494700/thumbnail_1150502900485587047_selection_ring_08.png",
+            "resourceId": "artifact:1150512856429494700",
+            "attachPoint": "head"
+        },
+        "id": 136,
+        "name": "Selection Ring 08",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513350392677345/thumbnail_1150502900485587047_shield.png",
+            "resourceId": "artifact:1150513350392677345",
+            "attachPoint": "head"
+        },
+        "id": 137,
+        "name": "Shield",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512812968116642/thumbnail_1150502900485587047_skull_00.png",
+            "resourceId": "artifact:1150512812968116642",
+            "attachPoint": "head"
+        },
+        "id": 138,
+        "name": "Skull 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513325252019164/thumbnail_1150502900485587047_skull_01.png",
+            "resourceId": "artifact:1150513325252019164",
+            "attachPoint": "head"
+        },
+        "id": 139,
+        "name": "Skull 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513330134189021/thumbnail_1150502900485587047_speech_bubble_00.png",
+            "resourceId": "artifact:1150513330134189021",
+            "attachPoint": "head"
+        },
+        "id": 140,
+        "name": "Speech Bubble 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512930727395772/thumbnail_1150502900485587047_speech_bubble_01.png",
+            "resourceId": "artifact:1150512930727395772",
+            "attachPoint": "head"
+        },
+        "id": 141,
+        "name": "Speech Bubble 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512778675487131/thumbnail_1150502900485587047_speech_bubble_02.png",
+            "resourceId": "artifact:1150512778675487131",
+            "attachPoint": "head"
+        },
+        "id": 142,
+        "name": "Speech Bubble 02",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513234554389448/thumbnail_1150502900485587047_star_00.png",
+            "resourceId": "artifact:1150513234554389448",
+            "attachPoint": "head"
+        },
+        "id": 143,
+        "name": "Star 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512921181159866/thumbnail_1150502900485587047_star_01.png",
+            "resourceId": "artifact:1150512921181159866",
+            "attachPoint": "head"
+        },
+        "id": 144,
+        "name": "Star 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512906266214839/thumbnail_1150502900485587047_sword.png",
+            "resourceId": "artifact:1150512906266214839",
+            "attachPoint": "head"
+        },
+        "id": 145,
+        "name": "Sword",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512583397082024/thumbnail_1150502900485587047_system.png",
+            "resourceId": "artifact:1150512583397082024",
+            "attachPoint": "head"
+        },
+        "id": 146,
+        "name": "System",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512896107610549/thumbnail_1150502900485587047_text_00.png",
+            "resourceId": "artifact:1150512896107610549",
+            "attachPoint": "head"
+        },
+        "id": 147,
+        "name": "Text 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513004790415823/thumbnail_1150502900485587047_text_01.png",
+            "resourceId": "artifact:1150513004790415823",
+            "attachPoint": "head"
+        },
+        "id": 148,
+        "name": "Text 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512734702403983/thumbnail_1150502900485587047_text_02.png",
+            "resourceId": "artifact:1150512734702403983",
+            "attachPoint": "head"
+        },
+        "id": 149,
+        "name": "Text 02",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512630784328057/thumbnail_1150502900485587047_tick.png",
+            "resourceId": "artifact:1150512630784328057",
+            "attachPoint": "head"
+        },
+        "id": 150,
+        "name": "Tick",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513244679439306/thumbnail_1150502900485587047_ute.png",
+            "resourceId": "artifact:1150513244679439306",
+            "attachPoint": "head"
+        },
+        "id": 151,
+        "name": "Ute",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512916215103929/thumbnail_1150502900485587047_warning.png",
+            "resourceId": "artifact:1150512916215103929",
+            "attachPoint": "head"
+        },
+        "id": 152,
+        "name": "Warning",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513265583850447/thumbnail_1150502900485587047_watch.png",
+            "resourceId": "artifact:1150513265583850447",
+            "attachPoint": "head"
+        },
+        "id": 153,
+        "name": "Watch",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513320579564507/thumbnail_1150502900485587047_weather_00.png",
+            "resourceId": "artifact:1150513320579564507",
+            "attachPoint": "head"
+        },
+        "id": 154,
+        "name": "Weather 00",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150513275499185106/thumbnail_1150502900485587047_weather_01.png",
+            "resourceId": "artifact:1150513275499185106",
+            "attachPoint": "head"
+        },
+        "id": 155,
+        "name": "Weather 01",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512578531689383/thumbnail_1150502900485587047_weather_02.png",
+            "resourceId": "artifact:1150512578531689383",
+            "attachPoint": "head"
+        },
+        "id": 156,
+        "name": "Weather 02",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512994363376076/thumbnail_1150502900485587047_weather_03.png",
+            "resourceId": "artifact:1150512994363376076",
+            "attachPoint": "head"
+        },
+        "id": 157,
+        "name": "Weather 03",
+        "type": "Helmet",
+        "defense": 1,
+        "count": 1,
+        "cost": 1
+    },
+    {
+        "obj": {
+            "thumbnailUri": "https://altvr-distro.azureedge.net/uploads/artifact/image/1150512788439826845/thumbnail_1150502900485587047_weather_04.png",
+            "resourceId": "artifact:1150512788439826845",
+            "attachPoint": "head"
+        },
+        "id": 158,
+        "name": "Weather 04",
         "type": "Helmet",
         "defense": 1,
         "count": 1,
