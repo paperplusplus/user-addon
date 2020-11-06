@@ -558,7 +558,10 @@ export class AltRPG {
         button.grabbable = true;
         button.onGrab('end', (user)=>{
             if (checkUserName(user, OWNER_NAME)) {
-                this.equipBall(user);
+                console.log(this.ball._button.attachment);
+                if (this.ball._button.attachment === undefined || this.ball._button.attachment.attachPoint == 'none'){
+                    this.equipBall(user);
+                }
             }
         });
 
