@@ -100,6 +100,8 @@ export class AltRPG {
     private equippedItems: Map<number, MRE.Actor> = new Map<number, MRE.Actor>();
     private userStats: UserStats;
 
+    private droppedItems: Map<MRE.Actor, ItemDescriptor> = new Map<MRE.Actor, ItemDescriptor>();
+
     private dadJoke: DadJoke[] = [{
         id: 0,
         type: JOKE_TYPE.GENERAL,
@@ -350,6 +352,7 @@ export class AltRPG {
     private addItemToInventory(item: ItemDescriptor){
         if (!this.itemIdToItem.has(item.id)){
             let it = cloneDeep(item)
+            it.count = 1;
             this.userItems.push(it);
             this.itemIdToItem.set(item.id, it);
         }else{
@@ -509,6 +512,53 @@ export class AltRPG {
         }
     }
 
+    private dropItem(index: number){
+        let item = this.userItems[index];
+        if (item === undefined || item.id == 0) { return; }
+
+        let pos = this.mirror.transform.app.position;
+        const position = { x: pos.x, y: pos.y, z: pos.z-4 }
+        const scale = item.obj.scale ? item.obj.scale : { x: 0.5, y: 0.5, z: 0.5 };
+        const rotation = item.obj.rotation ? item.obj.rotation : { x: 0, y: 180, z: 0 };
+
+        let actor = MRE.Actor.CreateFromLibrary(this.context, {
+            resourceId: item.obj.resourceId,
+            actor: {
+                transform: {
+                    local: {
+                        position: position,
+                        rotation: MRE.Quaternion.FromEulerAngles(
+                            rotation.x * MRE.DegreesToRadians,
+                            rotation.y * MRE.DegreesToRadians,
+                            rotation.z * MRE.DegreesToRadians),
+                        scale: scale
+                    }
+                },
+                collider: { 
+                    geometry: { shape: MRE.ColliderType.Box },
+                    layer: MRE.CollisionLayer.Default
+                },
+                grabbable: true
+            }
+        });
+
+        let buttonBehavior = actor.setBehavior(MRE.ButtonBehavior);
+        buttonBehavior.onClick(() => {
+            let it = this.droppedItems.get(actor);
+            this.pickupItem(it, actor);
+        });
+        this.droppedItems.set(actor, item);
+
+        this.removeItemFromInventory(index);
+        this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+    }
+
+    private pickupItem(item: ItemDescriptor, actor: MRE.Actor){
+        actor.destroy();
+        this.addItemToInventory(item);
+        this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+    }
+
     private playMeme(index: number){
         let item = this.memes[index];
         if (item === undefined) {return;}
@@ -649,6 +699,8 @@ export class AltRPG {
         });
         this.mirror.attach(user, 'spine-middle');
         this.disableMirror();
+
+        this.mirror.subscribe('transform');
 
         const CAMERA_RESOURCE_ID = "artifact:1493621766818366377";
         const CAMERA_SCALE = {x: 0.2, y: 0.2, z: 0.2};
@@ -888,7 +940,7 @@ export class AltRPG {
 }
 
     private createInventoryMenuControlStrip(){
-        const INVENTORY_CONTROL_ITEMS = ['Prev', 'Next', 'Equip', 'Remove', 'Back'];
+        const INVENTORY_CONTROL_ITEMS = ['Prev', 'Next', 'Equip', 'Remove', 'Drop', 'Back'];
         const CONTROL_CELL_WIDTH = 0.066
         const CONTROL_CELL_HEIGHT = 0.05;
         const CONTROL_CELL_DEPTH = 0.005;
@@ -965,6 +1017,12 @@ export class AltRPG {
                         this.removeItem(index);
                         this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
                         this.updateMenuPage( this.equipmentMenu, this.userEquipments, this.getItemDescription );
+                    }
+                    break;
+                case INVENTORY_CONTROL_ITEMS.indexOf('Drop'):
+                    if (this.inventoryMenu.highlighted){
+                        let index = this.inventoryMenu.getHighlightedIndex(this.inventoryMenu.coord);
+                        this.dropItem(index);
                     }
                     break;
                 case INVENTORY_CONTROL_ITEMS.indexOf('Back'):
@@ -1248,7 +1306,7 @@ export class AltRPG {
     private createShopMenuControlStrip(){
         const SHOP_CONTROL_ITEMS = ['Prev', 'Next', 'Buy', 'Back'];
         const SHOP_CONTROL_CELL_WIDTH = 0.066
-        const SHOP_CONTROL_CELL_HEIGHT = 0.05;
+        const SHOP_CONTROL_CELL_HEIGHT = 0.04;
         const SHOP_CONTROL_CELL_DEPTH = 0.005;
         const SHOP_CONTROL_CELL_MARGIN = 0.005;
         const SHOP_CONTROL_CELL_SCALE = 1;
