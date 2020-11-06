@@ -561,6 +561,9 @@ export class AltRPG {
                 this.equipBall(user);
             }
         });
+
+        // subscribe
+        button.subscribe('transform');
     }
 
     private async textToSpeech(text: string){
@@ -586,11 +589,21 @@ export class AltRPG {
     }
 
     private equipBall(user: MRE.User){
+        let tr = new MRE.ScaledTransform();
+        this.ball.updateLocalTransform(tr);
+
         this.ball._button.attach(user, 'left-hand');
     }
 
     private unEquipBall(){
-        if (this.ball._button.attachment !== undefined) this.ball._button.detach();
+        if (this.ball._button.attachment !== undefined) {
+            this.ball._button.detach();
+
+            let tr = new MRE.ScaledTransform();
+            tr.position = this.ball._button.transform.app.position;
+            tr.rotation = this.ball._button.transform.app.rotation;
+            this.ball.updateLocalTransform(tr);
+        }
     }
 
     private lockBall(){

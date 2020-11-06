@@ -165,6 +165,11 @@ export class Button {
         this._label.text.color = color;
     }
 
+    public updateLocalTransform(transform: MRE.ScaledTransform){
+        this._label.transform.local = transform;
+        this._button.transform.local = transform;
+    }
+
     public offsetLabel(offset: {x: number, y: number}){
         this._label.transform.local.position.x += offset.x;
         this._label.transform.local.position.y += offset.y;
