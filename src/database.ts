@@ -11,7 +11,7 @@ const password = process.env['PASSWORD'];
 type ObjectDescriptor = {
     thumbnailUri: string;
     resourceId: string;
-    attachPoint: string;
+    attachPoint?: string;
     scale?: {
         x: number;
         y: number;
@@ -33,7 +33,7 @@ type ObjectDescriptor = {
 export interface ItemDescriptor {
     id: number,
     name: string,
-    type: string,
+    type?: string,
     attack?: number,
     defense?: number,
     count?: number
@@ -101,6 +101,7 @@ export class AltVRCrawler{
                 'user[email]': email,
                 'user[password]': password
             }).redirects(0).end(function (err, response) {
+                console.log(response.text);
                 if (err) {reject}
                 let cookie: string[] = response.headers["set-cookie"];
                 resolve(cookie);
@@ -263,4 +264,16 @@ export class MemeCrawler{
 //     let memes: Meme[] = require('../public/data/memes.json');
 //     await crawler.duration(memes);
 //     fs.writeFile('./public/data/memes2.json', JSON.stringify(memes, null, 4), (err)=>{if(err) console.log(err);});
+// })();
+
+// (async ()=>{
+//     let crawler = new AltVRCrawler();
+//     crawler.get_kits([
+//         '1162013411748348872?page=1',
+//         '1162013411748348872?page=2',
+//         '1162013411748348872?page=3',
+//         '1162013411748348872?page=4',
+//         '1162013411748348872?page=5',
+//         '1162013411748348872?page=6'
+//     ]);
 // })();

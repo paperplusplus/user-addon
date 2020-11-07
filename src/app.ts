@@ -7,11 +7,13 @@ import * as MRE from '@microsoft/mixed-reality-extension-sdk';
 import { Vector2, Vector3 } from '@microsoft/mixed-reality-extension-sdk';
 const cloneDeep = require('clone-deep');
 
+const gltfBoundingBox = require('gltf-bounding-box');
+
 import { GridMenu } from './GUI/gridMenu';
 import { Button } from './GUI/button';
-import { ItemDescriptor, DadJoke, getJoke, JOKE_TYPE, Meme, MemeCrawler } from './database';
+import { ItemDescriptor, DadJoke, getJoke, JOKE_TYPE, Meme } from './database';
 
-import { checkUserName } from './utils';
+import { checkUserName, joinUrl, getGltf } from './utils';
 import { tts, greet, bye } from './tts';
 
 const OWNER_NAME = process.env['OWNER_NAME'];
@@ -30,6 +32,19 @@ type UserStats = {
     coins: number
 }
 
+type BoundingBoxDimensions = {
+    dimensions: {
+        width: number,
+        height: number,
+        depth: number
+    },
+    center: {
+        x: 0,
+        y: 0,
+        z: 0
+    }
+}
+
 const EQUIPMENT_ITEMS = ['Helmet', 'Armor', 'Weapon', 'Ring'];
 
 /**
@@ -44,9 +59,13 @@ export class AltRPG {
     private joinedSound: MRE.Sound;
     private leftSound: MRE.Sound;
     private defaultPlaneMaterial: MRE.Material;
+    private defaultBoxMaterial: MRE.Material;
     // cache
     private textures: Map<string, MRE.Texture>;
     private materials: Map<string, MRE.Material>;
+    private prefabs: Map<number, MRE.Prefab>;
+    private dimensions: Map<number, BoundingBoxDimensions>;
+    private highlightBoxes: Map<MRE.Guid, MRE.Actor>;
     private sounds: Map<string, MRE.Sound>;
     private playing: Map<string, MRE.MediaInstance>;
 
@@ -87,6 +106,10 @@ export class AltRPG {
     private soundboardMenu: GridMenu;
     private soundboardMenuControlStrip: GridMenu;
 
+    // level_editor scene
+    private levelEditorMenu: GridMenu;
+    private levelEditorMenuControlStrip: GridMenu;
+
     // scene states
     private scenes: Array<[string, GridMenu[]]> = [];
     private currentScene: string = '#';
@@ -94,6 +117,7 @@ export class AltRPG {
 
     // game data
     private itemDatabase: ItemDescriptor[];
+    private propDatabase: ItemDescriptor[];
     private userItems: ItemDescriptor[];
     private userEquipments: ItemDescriptor[];
     private itemIdToItem: Map<number, ItemDescriptor> = new Map<number, ItemDescriptor>();
@@ -101,6 +125,8 @@ export class AltRPG {
     private userStats: UserStats;
 
     private droppedItems: Map<MRE.Actor, ItemDescriptor> = new Map<MRE.Actor, ItemDescriptor>();
+    private spawnedItems: Map<MRE.Actor, ItemDescriptor> = new Map<MRE.Actor, ItemDescriptor>();
+    private highlightedActor: MRE.Actor = null;
 
     private dadJoke: DadJoke[] = [{
         id: 0,
@@ -121,6 +147,9 @@ export class AltRPG {
         // repetition check for texture reuse
         this.textures = new Map<string, MRE.Texture>();
         this.materials = new Map<string, MRE.Material>();
+        this.prefabs = new Map<number, MRE.Prefab>();
+        this.dimensions = new Map<number, BoundingBoxDimensions>();
+        this.highlightBoxes = new Map<MRE.Guid, MRE.Actor>();
         this.sounds = new Map<string, MRE.Sound>();
         this.playing = new Map<string, MRE.MediaInstance>();
 
@@ -142,6 +171,7 @@ export class AltRPG {
         // sounds & default plane material for menus
         this.loadSounds();
         this.defaultPlaneMaterial = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.DarkGray() });
+        this.defaultBoxMaterial = this.assets.createMaterial('default_box_material', { color: MRE.Color4.FromColor3(MRE.Color3.Purple(), 0.5), alphaMode: MRE.AlphaMode.Blend });
 
         // ball        
         this.createBall();
@@ -179,6 +209,11 @@ export class AltRPG {
         this.createSoundboardMenuControlStrip();
         this.updateSoundboard( this.getMemePageData() );
 
+        // menus for level_editor scene
+        this.createLevelEditorMenu();
+        this.createLevelEditorMenuControlStrip();
+        this.updateMenuPage( this.levelEditorMenu, this.getLevelEditorPageData() );
+
         // scenes
         this.scenes.push(['main_menu', [this.mainMenu, this.mainMenuControlStrip]]);
         this.scenes.push(['inventory_menu', [this.inventoryMenu, this.inventoryControlStrip, this.infoPanel, this.equipmentMenu, this.userStatsPanel]]);
@@ -186,6 +221,7 @@ export class AltRPG {
         this.scenes.push(['tools_menu', [this.toolsMenu]]);
         this.scenes.push(['bdj_menu', [this.BDJMenu, this.BDJMenuControlStrip]]);
         this.scenes.push(['soundboard_menu', [this.soundboardMenu, this.soundboardMenuControlStrip]]);
+        this.scenes.push(['level_editor_menu', [this.levelEditorMenu, this.levelEditorMenuControlStrip]]);
 
         // hide menus on game start up
         this.switchScene('');
@@ -276,6 +312,22 @@ export class AltRPG {
         return material;
     }
 
+    private async loadGltf(id: number, uri: string){
+        let url = joinUrl(this.baseUrl, uri);
+        if (!this.prefabs.has(id)){
+            let obj = await getGltf(url);
+            let dim = gltfBoundingBox.computeBoundings(obj);
+            
+            await this.assets.loadGltf(url)
+                .then(assets => {
+                    this.prefabs.set(id, assets.find(a => a.prefab !== null) as MRE.Prefab);
+                    this.dimensions.set(id, dim);
+                })
+                .catch(e => MRE.log.info("app", e));
+        }
+        return this.prefabs.get(id);
+    }
+
     /////////////////////
     //// sound
     private loadSound(name: string, uri: string){
@@ -293,6 +345,7 @@ export class AltRPG {
     //// data
     private async loadData(){
         this.itemDatabase = require('../public/data/items.json');
+        this.propDatabase = require('../public/data/data.json');
         this.userItems = [];
         this.userEquipments = EQUIPMENT_ITEMS.map(e => ({
             name: e,
@@ -330,6 +383,11 @@ export class AltRPG {
     private getInventoryPageData(){
         let pageSize = this.inventoryMenu.row * this.inventoryMenu.col;
         return this.userItems.slice(pageSize*(this.inventoryMenu.curPageNum-1), pageSize*this.inventoryMenu.curPageNum);
+    }
+
+    private getLevelEditorPageData(){
+        let pageSize = this.levelEditorMenu.row * this.levelEditorMenu.col;
+        return this.propDatabase.slice(pageSize*(this.levelEditorMenu.curPageNum-1), pageSize*this.levelEditorMenu.curPageNum);
     }
 
     private async getBDJData(type: JOKE_TYPE){
@@ -557,6 +615,80 @@ export class AltRPG {
         actor.destroy();
         this.addItemToInventory(item);
         this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
+    }
+
+    private async spawnItem(index: number){
+        let item = this.propDatabase[index];
+        if (item === undefined || item.id == 0) { return; }
+
+        let pos = this.mirror.transform.app.position;
+        const position = { x: pos.x, y: pos.y, z: pos.z-4 }
+        const scale = item.obj.scale ? item.obj.scale : { x: 0.1, y: 0.1, z: 0.1 };
+        const rotation = item.obj.rotation ? item.obj.rotation : { x: 0, y: 180, z: 0 };
+
+        let prefab = await this.loadGltf(item.id, item.obj.resourceId);
+        let actor = MRE.Actor.CreateFromPrefab(this.context, {
+            prefabId: prefab.id,
+            actor: {
+                transform: {
+                    local: {
+                        position: position,
+                        rotation: MRE.Quaternion.FromEulerAngles(
+                            rotation.x * MRE.DegreesToRadians,
+                            rotation.y * MRE.DegreesToRadians,
+                            rotation.z * MRE.DegreesToRadians),
+                        scale: scale
+                    }
+                },
+                collider: { 
+                    geometry: { shape: MRE.ColliderType.Box },
+                    layer: MRE.CollisionLayer.Hologram
+                },
+                grabbable: true
+            }
+        });
+
+        console.log(actor.children);
+
+        let dim = this.dimensions.get(item.id).dimensions;
+        let box = MRE.Actor.CreatePrimitive(this.assets, {
+            definition: {
+                shape: MRE.PrimitiveShape.Box,
+                dimensions: {x: dim.width, y: dim.height, z: dim.depth}
+            },
+            addCollider: false,
+            actor: {
+                name: item.name,
+                parentId: actor.id,
+                transform: {
+                    local: {
+                        position: {x: 0, y: 0, z: 0},
+                        scale: {x: 1.05, y: 1.05, z: 1.05}
+                    }
+                },
+                appearance: {
+                    enabled: false,
+                    materialId: this.defaultBoxMaterial.id
+                }
+            },
+        });
+        this.highlightBoxes.set(actor.id, box);
+
+        // add behavior
+        let buttonBehavior = actor.setBehavior(MRE.ButtonBehavior);
+        buttonBehavior.onClick(() => {
+            if (this.highlightedActor != actor){
+                if (this.highlightedActor != null){
+                    this.highlightBoxes.get( this.highlightedActor.id ).appearance.enabled = false;
+                }
+                box.appearance.enabled = true;
+                this.highlightedActor = actor;
+            }else{
+                box.appearance.enabled = false;
+                this.highlightedActor = null;
+            }
+        });
+        this.spawnedItems.set(actor, item);
     }
 
     private playMeme(index: number){
@@ -799,6 +931,9 @@ export class AltRPG {
                     this.inventoryMenu.offsetMenu({x: w + this.shopMenu.margin*2, y: 0});
                     this.infoPanel.offsetMenu({x: w + this.shopMenu.margin*2, y: 0});
                     this.switchScene('shop_menu');
+                    break;
+                case MAIN_MENU_ITEMS.indexOf('Map'):
+                    this.switchScene('level_editor_menu');
                     break;
                 case MAIN_MENU_ITEMS.indexOf('Settings'):
                     break;
@@ -1824,6 +1959,140 @@ export class AltRPG {
                     this.stopMemes();
                     break;
                 case SOUNDBOARD_CONTROL_ITEMS.indexOf('Back'):
+                    this.switchScene('main_menu');
+                    break;
+            }
+        });
+    }
+
+    private createLevelEditorMenu(){
+        const EDITOR_DIMENSIONS = new Vector2(4,4);
+        const EDITOR_CELL_WIDTH = 0.1;
+        const EDITOR_CELL_HEIGHT = 0.1;
+        const EDITOR_CELL_DEPTH = 0.005;
+        const EDITOR_CELL_MARGIN = 0.005;
+        const EDITOR_CELL_SCALE = 1;
+        const EDITOR_PLANE_WIDTH = 0.1;
+        const EDITOR_PLANE_HEIGHT = 0.1;
+
+        let levelEditorMenuMeshId = this.assets.createBoxMesh('editor_menu_btn_mesh', EDITOR_CELL_WIDTH, EDITOR_CELL_HEIGHT, EDITOR_CELL_DEPTH).id;
+        let levelEditorMenuDefaultMaterialId = this.assets.createMaterial('editor_menu_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+        let levelEditorMenuHighlightMeshId = this.assets.createBoxMesh('editor_menu_highlight_mesh', EDITOR_CELL_WIDTH+EDITOR_CELL_MARGIN, EDITOR_CELL_HEIGHT+EDITOR_CELL_MARGIN, EDITOR_CELL_DEPTH/2).id;
+        let levelEditorMenuHighlightMaterialId = this.assets.createMaterial('editor_menu_highlight_btn_material', { color: MRE.Color3.Red() }).id;
+        let levelEditorMenuPlaneMeshId = this.assets.createPlaneMesh('editor_menu_plane_mesh', EDITOR_PLANE_WIDTH, EDITOR_PLANE_HEIGHT).id;
+        
+        this.levelEditorMenu = new GridMenu(this.context, {
+            // logic
+            name: 'editor',
+            title: 'Props',
+            shape: {
+                row: EDITOR_DIMENSIONS.x,
+                col: EDITOR_DIMENSIONS.y
+            },
+            // assets
+            meshId: levelEditorMenuMeshId,
+            defaultMaterialId: levelEditorMenuDefaultMaterialId,
+            highlightMeshId: levelEditorMenuHighlightMeshId,
+            highlightMaterialId: levelEditorMenuHighlightMaterialId,
+            planeMeshId: levelEditorMenuPlaneMeshId,
+            defaultPlaneMaterial: this.defaultPlaneMaterial,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset:{
+                x: RADIUS,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
+                width: EDITOR_CELL_WIDTH,
+                height: EDITOR_CELL_HEIGHT,
+                depth: EDITOR_CELL_DEPTH,
+                scale: EDITOR_CELL_SCALE,
+                textColor: MRE.Color3.White(),
+                textHeight: 0.01,
+                textAnchor: MRE.TextAnchorLocation.TopRight
+            },
+            highlight: {
+                depth: EDITOR_CELL_DEPTH/2,
+            },
+            plane: {
+                width: EDITOR_CELL_WIDTH,
+                height: EDITOR_CELL_HEIGHT
+            },
+            margin: EDITOR_CELL_MARGIN,
+        });
+        this.levelEditorMenu.offsetLabels({x: EDITOR_CELL_WIDTH/2, y: EDITOR_CELL_HEIGHT/2});
+        this.levelEditorMenu.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'level_editor_menu') { return; }
+            this.levelEditorMenu.highlight(coord);
+        });
+    }
+
+    private createLevelEditorMenuControlStrip(){
+        const EDITOR_CONTROL_CELL_WIDTH = 0.1;
+        const EDITOR_CONTROL_CELL_HEIGHT = 0.04;
+        const EDITOR_CONTROL_CELL_DEPTH = 0.005;
+        const EDITOR_CONTROL_CELL_MARGIN = 0.005;
+        const EDITOR_CONTROL_CELL_SCALE = 1;
+        const EDITOR_CONTROL_CELL_TEXT_HEIGHT = 0.02;
+
+        const EDITOR_CONTROL_ITEMS = ['Search', 'Prev', 'Next', 'Spawn', 'Delete', 'Save', 'Load', 'Back'];
+
+        let levelEditorMenuControlMeshId = this.assets.createBoxMesh('editor_menu_control_btn_mesh', EDITOR_CONTROL_CELL_WIDTH, EDITOR_CONTROL_CELL_HEIGHT, EDITOR_CONTROL_CELL_DEPTH).id;
+        let levelEditorMenuControlDefaultMaterialId = this.assets.createMaterial('editor_menu_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
+
+        let data = EDITOR_CONTROL_ITEMS.map(t => [{
+            text: t
+        }]);
+
+        this.levelEditorMenuControlStrip = new GridMenu(this.context, {
+            // logic
+            data,
+            shape: {
+                row: EDITOR_CONTROL_ITEMS.length,
+                col: 1
+            },
+            // assets
+            meshId: levelEditorMenuControlMeshId,
+            defaultMaterialId: levelEditorMenuControlDefaultMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS + this.levelEditorMenu.getMenuSize().width + this.levelEditorMenu.margin,
+                y: RADIUS
+            },
+            // dimensions
+            box: {
+                width: EDITOR_CONTROL_CELL_WIDTH,
+                height: EDITOR_CONTROL_CELL_HEIGHT,
+                depth: EDITOR_CONTROL_CELL_DEPTH,
+                scale: EDITOR_CONTROL_CELL_SCALE,
+                textHeight: EDITOR_CONTROL_CELL_TEXT_HEIGHT
+            },
+            margin: EDITOR_CONTROL_CELL_MARGIN,
+        });
+
+        this.levelEditorMenuControlStrip.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
+            if (this.currentScene != 'level_editor_menu') return;
+            let row = coord.x;
+            switch(row){
+                case EDITOR_CONTROL_ITEMS.indexOf('Prev'):
+                    this.levelEditorMenu.decrementPageNum();
+                    this.updateMenuPage( this.levelEditorMenu, this.getLevelEditorPageData() );
+                    break;
+                case EDITOR_CONTROL_ITEMS.indexOf('Next'):
+                    this.levelEditorMenu.incrementPageNum(this.propDatabase.length);
+                    this.updateMenuPage( this.levelEditorMenu, this.getLevelEditorPageData() );
+                    break;
+                case EDITOR_CONTROL_ITEMS.indexOf('Spawn'):
+                    let index = this.levelEditorMenu.getHighlightedIndex(this.levelEditorMenu.coord);
+                    this.spawnItem(index);
+                    break;
+                case EDITOR_CONTROL_ITEMS.indexOf('Delete'):
+                    break;
+                case EDITOR_CONTROL_ITEMS.indexOf('Back'):
                     this.switchScene('main_menu');
                     break;
             }
