@@ -313,7 +313,7 @@ export class AltRPG {
     }
 
     private async loadGltf(id: number, uri: string){
-        let url = joinUrl(this.baseUrl, uri);
+        let url = joinUrl(this.baseUrl +'/', uri);
         if (!this.prefabs.has(id)){
             let obj = await getGltf(url);
             let dim = gltfBoundingBox.computeBoundings(obj);
