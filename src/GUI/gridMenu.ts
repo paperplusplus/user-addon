@@ -119,7 +119,7 @@ export class GridMenu {
     private _margin: number;
 
     // logic
-    private buttons = new Map<string, Button>();
+    protected buttons = new Map<string, Button>();
     private highlightButton: Button;
     private highlightedButtonCoord: Vector2;
     private isHighlighted: boolean = false;

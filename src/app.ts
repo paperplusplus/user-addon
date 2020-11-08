@@ -4,21 +4,23 @@ import crypto from 'crypto';
 const sha256 = (x:string) => crypto.createHash('sha256').update(x, 'utf8').digest('hex');
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk';
-import { Vector2, Vector3 } from '@microsoft/mixed-reality-extension-sdk';
+import { ScaledTransform, Vector2, Vector3 } from '@microsoft/mixed-reality-extension-sdk';
 const cloneDeep = require('clone-deep');
 
 const gltfBoundingBox = require('gltf-bounding-box');
 
 import { GridMenu } from './GUI/gridMenu';
 import { Button } from './GUI/button';
-import { ItemDescriptor, DadJoke, getJoke, JOKE_TYPE, Meme } from './database';
+import { ItemDescriptor, DadJoke, getJoke, JOKE_TYPE, Meme, levelData } from './database';
 
 import { checkUserName, joinUrl, getGltf } from './utils';
 import { tts, greet, bye } from './tts';
+import { NumberInput } from './GUI/NumberInput';
 
 const OWNER_NAME = process.env['OWNER_NAME'];
 
 const RADIUS=0.1;
+const SCALE_STEP = 0.005;
 
 interface playSoundOptions{
     rolloffStartDistance?: number;
@@ -60,6 +62,7 @@ export class AltRPG {
     private leftSound: MRE.Sound;
     private defaultPlaneMaterial: MRE.Material;
     private defaultBoxMaterial: MRE.Material;
+    private editorBoxMaterial: MRE.Material;
     // cache
     private textures: Map<string, MRE.Texture>;
     private materials: Map<string, MRE.Material>;
@@ -77,6 +80,9 @@ export class AltRPG {
     // camera & mirror
     private camera: MRE.Actor;
     private mirror: MRE.Actor;
+
+    // editor box
+    private editorBox: MRE.Actor;
 
     // main_menu scene
     private mainMenu: GridMenu;
@@ -109,6 +115,7 @@ export class AltRPG {
     // level_editor scene
     private levelEditorMenu: GridMenu;
     private levelEditorMenuControlStrip: GridMenu;
+    private numberInput: NumberInput;
 
     // scene states
     private scenes: Array<[string, GridMenu[]]> = [];
@@ -123,6 +130,8 @@ export class AltRPG {
     private itemIdToItem: Map<number, ItemDescriptor> = new Map<number, ItemDescriptor>();
     private equippedItems: Map<number, MRE.Actor> = new Map<number, MRE.Actor>();
     private userStats: UserStats;
+
+    private idToIndex: Map<number, number> = new Map<number, number>();
 
     private droppedItems: Map<MRE.Actor, ItemDescriptor> = new Map<MRE.Actor, ItemDescriptor>();
     private spawnedItems: Map<MRE.Actor, ItemDescriptor> = new Map<MRE.Actor, ItemDescriptor>();
@@ -172,6 +181,7 @@ export class AltRPG {
         this.loadSounds();
         this.defaultPlaneMaterial = this.assets.createMaterial('default_btn_material', { color: MRE.Color3.DarkGray() });
         this.defaultBoxMaterial = this.assets.createMaterial('default_box_material', { color: MRE.Color4.FromColor3(MRE.Color3.Purple(), 0.5), alphaMode: MRE.AlphaMode.Blend });
+        this.editorBoxMaterial = this.assets.createMaterial('default_box_material', { color: MRE.Color4.FromColor3(MRE.Color3.Teal(), 0.5), alphaMode: MRE.AlphaMode.Blend });
 
         // ball        
         this.createBall();
@@ -213,6 +223,7 @@ export class AltRPG {
         this.createLevelEditorMenu();
         this.createLevelEditorMenuControlStrip();
         this.updateMenuPage( this.levelEditorMenu, this.getLevelEditorPageData() );
+        this.createNumberInput();
 
         // scenes
         this.scenes.push(['main_menu', [this.mainMenu, this.mainMenuControlStrip]]);
@@ -221,7 +232,7 @@ export class AltRPG {
         this.scenes.push(['tools_menu', [this.toolsMenu]]);
         this.scenes.push(['bdj_menu', [this.BDJMenu, this.BDJMenuControlStrip]]);
         this.scenes.push(['soundboard_menu', [this.soundboardMenu, this.soundboardMenuControlStrip]]);
-        this.scenes.push(['level_editor_menu', [this.levelEditorMenu, this.levelEditorMenuControlStrip]]);
+        this.scenes.push(['level_editor_menu', [this.levelEditorMenu, this.levelEditorMenuControlStrip, this.numberInput]]);
 
         // hide menus on game start up
         this.switchScene('');
@@ -240,6 +251,7 @@ export class AltRPG {
 
         if (checkUserName(user, OWNER_NAME)){
             this.createMirror(user);
+            this.createEditorBox(user);
         }
         this.playSoundWithBall(this.joinedSound, {volume: 0.1});
         setTimeout(() => {
@@ -346,6 +358,10 @@ export class AltRPG {
     private async loadData(){
         this.itemDatabase = require('../public/data/items.json');
         this.propDatabase = require('../public/data/data.json');
+        this.propDatabase.forEach((d,i)=>{
+            this.idToIndex.set(d.id, i);
+        });
+
         this.userItems = [];
         this.userEquipments = EQUIPMENT_ITEMS.map(e => ({
             name: e,
@@ -574,7 +590,7 @@ export class AltRPG {
         let item = this.userItems[index];
         if (item === undefined || item.id == 0) { return; }
 
-        let pos = this.mirror.transform.app.position;
+        let pos = this.editorBox.transform.app.position;
         const position = { x: pos.x, y: pos.y, z: pos.z-4 }
         const scale = item.obj.scale ? item.obj.scale : { x: 0.5, y: 0.5, z: 0.5 };
         const rotation = item.obj.rotation ? item.obj.rotation : { x: 0, y: 180, z: 0 };
@@ -583,8 +599,11 @@ export class AltRPG {
             resourceId: item.obj.resourceId,
             actor: {
                 transform: {
+                    app: {
+                        position: pos
+                    },
                     local: {
-                        position: position,
+                        position: {x: 0, y: 0, z: 0},
                         rotation: MRE.Quaternion.FromEulerAngles(
                             rotation.x * MRE.DegreesToRadians,
                             rotation.y * MRE.DegreesToRadians,
@@ -617,84 +636,138 @@ export class AltRPG {
         this.updateMenuPage( this.inventoryMenu, this.getInventoryPageData(), (d: ItemDescriptor) => d.count.toString() );
     }
 
-    private async spawnItem(index: number){
+    private async spawnItem(index: number, _transform?: MRE.ActorTransformLike, editor: boolean = true){
         let item = this.propDatabase[index];
         if (item === undefined || item.id == 0) { return; }
 
-        let pos = this.mirror.transform.app.position;
+        let pos = this.editorBox.transform.app.position;
         const position = { x: pos.x, y: pos.y, z: pos.z-4 }
         const scale = item.obj.scale ? item.obj.scale : { x: 0.1, y: 0.1, z: 0.1 };
         const rotation = item.obj.rotation ? item.obj.rotation : { x: 0, y: 180, z: 0 };
+        let transform = (_transform !== undefined) ? _transform : {
+            app: {
+                position: pos
+            },
+            local: {
+                position: {x: 0, y: 0, z: 0},
+                rotation: MRE.Quaternion.FromEulerAngles(
+                    rotation.x * MRE.DegreesToRadians,
+                    rotation.y * MRE.DegreesToRadians,
+                    rotation.z * MRE.DegreesToRadians),
+                scale: scale
+            }
+        };
 
         let prefab = await this.loadGltf(item.id, item.obj.resourceId);
         let actor = MRE.Actor.CreateFromPrefab(this.context, {
             prefabId: prefab.id,
             actor: {
-                transform: {
-                    local: {
-                        position: position,
-                        rotation: MRE.Quaternion.FromEulerAngles(
-                            rotation.x * MRE.DegreesToRadians,
-                            rotation.y * MRE.DegreesToRadians,
-                            rotation.z * MRE.DegreesToRadians),
-                        scale: scale
-                    }
-                },
+                transform,
                 collider: { 
                     geometry: { shape: MRE.ColliderType.Box },
                     layer: MRE.CollisionLayer.Hologram
-                },
-                grabbable: true
+                }
             }
         });
 
-        console.log(actor.children);
-
-        let dim = this.dimensions.get(item.id).dimensions;
-        let box = MRE.Actor.CreatePrimitive(this.assets, {
-            definition: {
-                shape: MRE.PrimitiveShape.Box,
-                dimensions: {x: dim.width, y: dim.height, z: dim.depth}
-            },
-            addCollider: false,
-            actor: {
-                name: item.name,
-                parentId: actor.id,
-                transform: {
-                    local: {
-                        position: {x: 0, y: 0, z: 0},
-                        scale: {x: 1.05, y: 1.05, z: 1.05}
+        if (editor){
+            // grabbable
+            actor.grabbable = true;
+            // subscribe
+            actor.subscribe('transform');
+            // bounding box
+            let dim = this.dimensions.get(item.id).dimensions;
+            let box = MRE.Actor.CreatePrimitive(this.assets, {
+                definition: {
+                    shape: MRE.PrimitiveShape.Box,
+                    dimensions: {x: dim.width, y: dim.height, z: dim.depth}
+                },
+                addCollider: false,
+                actor: {
+                    name: item.name,
+                    parentId: actor.id,
+                    transform: {
+                        local: {
+                            position: {x: 0, y: 0, z: 0},
+                            scale: {x: 1.05, y: 1.05, z: 1.05}
+                        }
+                    },
+                    appearance: {
+                        enabled: false,
+                        materialId: this.defaultBoxMaterial.id
                     }
                 },
-                appearance: {
-                    enabled: false,
-                    materialId: this.defaultBoxMaterial.id
-                }
-            },
-        });
-        this.highlightBoxes.set(actor.id, box);
+            });
+            this.highlightBoxes.set(actor.id, box);
 
-        // add behavior
-        let buttonBehavior = actor.setBehavior(MRE.ButtonBehavior);
-        buttonBehavior.onClick(() => {
-            if (this.highlightedActor != actor){
-                if (this.highlightedActor != null){
-                    this.highlightBoxes.get( this.highlightedActor.id ).appearance.enabled = false;
+            // add behavior
+            let buttonBehavior = actor.setBehavior(MRE.ButtonBehavior);
+            buttonBehavior.onClick(() => {
+                if (this.highlightedActor != actor){
+                    if (this.highlightedActor != null){
+                        this.highlightBoxes.get( this.highlightedActor.id ).appearance.enabled = false;
+                    }
+                    box.appearance.enabled = true;
+                    this.highlightedActor = actor;
+                    // update number input
+                    this.numberInput.updateText(this.highlightedActor.transform.local.scale.x.toString());
+                }else{
+                    box.appearance.enabled = false;
+                    this.highlightedActor = null;
+                    // update number input
+                    this.numberInput.updateText('');
                 }
-                box.appearance.enabled = true;
-                this.highlightedActor = actor;
-            }else{
-                box.appearance.enabled = false;
-                this.highlightedActor = null;
-            }
-        });
+            });
+        }
         this.spawnedItems.set(actor, item);
+    }
+
+    private deleteItem(actor: MRE.Actor){
+        actor.unsubscribe('transform');
+
+        let box = this.highlightBoxes.get(actor.id);
+        if (box !== undefined) { box.destroy(); }
+
+        this.spawnedItems.delete(actor);
+        actor.destroy();
+    }
+
+    private saveLevel(filename: string){
+        let level: levelData = [];
+        this.spawnedItems.forEach((v,k) => {
+            level.push({
+                id: v.id,
+                transform: k.transform
+            });
+        });
+
+        let filePath = `./public/data/${filename}`;
+        fs.writeFile(filePath, JSON.stringify(level), (err) => {
+            if(err){ console.log(err);}
+            console.log('saved');
+        });
+    }
+
+    private loadLevel(filename: string, editor: boolean = false){
+        let filePath = `../public/data/${filename}`;
+        let level: levelData = require(filePath);
+
+        level.forEach((d, i) => {
+            let index = this.idToIndex.get(d.id)
+            this.spawnItem(index, d.transform, editor);
+        });
+    }
+
+    private clearLevel(){
+        this.spawnedItems.forEach((_,k) => {
+            this.deleteItem(k);
+        })
     }
 
     private playMeme(index: number){
         let item = this.memes[index];
         if (item === undefined) {return;}
-        let uri = `${this.baseUrl}/data/${path.basename(item.uri)}`;
+        let uri = `${this.baseUrl}/meme/${path.basename(item.uri)}`;
         console.log(uri);
         let sound = this.loadSound(item.name, uri);
         let mediaInstance = this.playSoundWithBall(sound, {volume: 0.05, rolloffStartDistance: 1});
@@ -832,8 +905,6 @@ export class AltRPG {
         this.mirror.attach(user, 'spine-middle');
         this.disableMirror();
 
-        this.mirror.subscribe('transform');
-
         const CAMERA_RESOURCE_ID = "artifact:1493621766818366377";
         const CAMERA_SCALE = {x: 0.2, y: 0.2, z: 0.2};
         const CAMERA_POSITION = {
@@ -861,12 +932,54 @@ export class AltRPG {
         this.camera.attach(user, 'spine-middle');
     }
 
+    private createEditorBox(user: MRE.User){
+        const EDITOR_BOX_WIDTH = 0.5;
+        const EDITOR_BOX_HEIGHT = 0.5;
+        const EDITOR_BOX_DEPTH = 0.5;
+        const EDITOR_BOX_SCALE = {x: 1, y: 1, z: 1};
+        const EDITOR_BOX_POSITION = {
+            x: 0.8, y: 0, z: 3
+        }
+
+        this.editorBox = MRE.Actor.CreatePrimitive(this.assets, {
+            definition: {
+                shape: MRE.PrimitiveShape.Box,
+                dimensions: {x: EDITOR_BOX_WIDTH, y: EDITOR_BOX_HEIGHT, z: EDITOR_BOX_DEPTH}
+            },
+            addCollider: false,
+            actor: {
+                name: 'editor box',
+                transform: {
+                    local: {
+                        position: EDITOR_BOX_POSITION,
+                        scale: EDITOR_BOX_SCALE
+                    }
+                },
+                appearance: {
+                    materialId: this.editorBoxMaterial.id
+                },
+            },
+        });
+        this.editorBox.attach(user, 'spine-middle');
+        this.disableEditorBox();
+
+        this.editorBox.subscribe('transform');
+    }
+
     private enableMirror(){
         this.mirror.appearance.enabled = true;
     }
 
     private disableMirror(){
         this.mirror.appearance.enabled = false;
+    }
+
+    private enableEditorBox(){
+        this.editorBox.appearance.enabled = true;
+    }
+
+    private disableEditorBox(){
+        this.editorBox.appearance.enabled = false;
     }
 
     ////////////////
@@ -2026,6 +2139,11 @@ export class AltRPG {
         this.levelEditorMenu.addBehavior((coord: Vector2, name: string, user: MRE.User) => {
             if (this.currentScene != 'level_editor_menu') { return; }
             this.levelEditorMenu.highlight(coord);
+            if (this.levelEditorMenu.highlighted) {
+                this.enableEditorBox();
+            }else{
+                this.disableEditorBox();
+            }
         });
     }
 
@@ -2037,7 +2155,7 @@ export class AltRPG {
         const EDITOR_CONTROL_CELL_SCALE = 1;
         const EDITOR_CONTROL_CELL_TEXT_HEIGHT = 0.02;
 
-        const EDITOR_CONTROL_ITEMS = ['Search', 'Prev', 'Next', 'Spawn', 'Delete', 'Save', 'Load', 'Back'];
+        const EDITOR_CONTROL_ITEMS = ['Prev', 'Next', 'Spawn', 'Delete', 'Save', 'Load', 'Resume', 'Clear', 'Back'];
 
         let levelEditorMenuControlMeshId = this.assets.createBoxMesh('editor_menu_control_btn_mesh', EDITOR_CONTROL_CELL_WIDTH, EDITOR_CONTROL_CELL_HEIGHT, EDITOR_CONTROL_CELL_DEPTH).id;
         let levelEditorMenuControlDefaultMaterialId = this.assets.createMaterial('editor_menu_control_default_btn_material', { color: MRE.Color3.LightGray() }).id;
@@ -2091,12 +2209,107 @@ export class AltRPG {
                     this.spawnItem(index);
                     break;
                 case EDITOR_CONTROL_ITEMS.indexOf('Delete'):
+                    if (this.highlightedActor != null){
+                        this.deleteItem(this.highlightedActor);
+                    }
+                    break;
+                case EDITOR_CONTROL_ITEMS.indexOf('Save'):
+                    this.saveLevel('test.json');
+                    break;
+                case EDITOR_CONTROL_ITEMS.indexOf('Load'):
+                    this.loadLevel('test.json', false);
+                    break;
+                case EDITOR_CONTROL_ITEMS.indexOf('Resume'):
+                    this.loadLevel('test.json', true);
+                    break;
+                case EDITOR_CONTROL_ITEMS.indexOf('Clear'):
+                    user.prompt("Clear level?").then((dialog) => {
+                        if (dialog.submitted) {
+                            this.clearLevel();
+                        }
+                    });
                     break;
                 case EDITOR_CONTROL_ITEMS.indexOf('Back'):
+                    this.disableEditorBox();
                     this.switchScene('main_menu');
                     break;
             }
         });
+    }
+
+    private createNumberInput(){
+        const NUMBER_INPUT_CELL_WIDTH = 0.1;
+        const NUMBER_INPUT_CELL_HEIGHT = 0.04;
+        const NUMBER_INPUT_CELL_DEPTH = 0.005;
+        const NUMBER_INPUT_CELL_MARGIN = 0.005;
+        const NUMBER_INPUT_CELL_SCALE = 1;
+        const NUMBER_INPUT_CELL_TEXT_HEIGHT = 0.02;
+
+        let numberInputMeshId = this.assets.createBoxMesh('number_input_btn_mesh', NUMBER_INPUT_CELL_WIDTH, NUMBER_INPUT_CELL_HEIGHT, NUMBER_INPUT_CELL_DEPTH).id;
+        let numberInputMaterialId = this.assets.createMaterial('number_input_btn_material', { color: MRE.Color3.LightGray() }).id;
+
+        this.numberInput = new NumberInput(this.context, {
+            // logic
+            shape: {
+                row: 1,
+                col: 3
+            },
+            // assets
+            meshId: numberInputMeshId,
+            defaultMaterialId: numberInputMaterialId,
+            // control
+            parentId: this.root.id,
+            // transform
+            offset: {
+                x: RADIUS,
+                y: RADIUS - NUMBER_INPUT_CELL_MARGIN - NUMBER_INPUT_CELL_HEIGHT
+            },
+            // dimensions
+            box: {
+                width: NUMBER_INPUT_CELL_WIDTH,
+                height: NUMBER_INPUT_CELL_HEIGHT,
+                depth: NUMBER_INPUT_CELL_DEPTH,
+                scale: NUMBER_INPUT_CELL_SCALE,
+                textHeight: NUMBER_INPUT_CELL_TEXT_HEIGHT
+            },
+            margin: NUMBER_INPUT_CELL_MARGIN,
+        });
+
+        this.numberInput.onIncrease(()=>{
+            if (this.highlightedActor != null){
+                let scale = this.highlightedActor.transform.local.scale;
+                scale.x += SCALE_STEP;
+                scale.y += SCALE_STEP;
+                scale.z += SCALE_STEP;
+                this.numberInput.updateText(scale.x.toString());
+            }
+        });
+
+        this.numberInput.onDecrease(()=>{
+            if (this.highlightedActor != null){
+                let scale = this.highlightedActor.transform.local.scale;
+                scale.x -= SCALE_STEP;
+                scale.y -= SCALE_STEP;
+                scale.z -= SCALE_STEP;
+                this.numberInput.updateText(scale.x.toString());
+            }
+        });
+        this.numberInput.onEdit((user)=>{
+            if (this.highlightedActor != null){
+                user.prompt("Change scale to", true).then((dialog) => {
+                    if (dialog.submitted) {
+                        let int = parseInt(dialog.text);
+                        if(int !== NaN){
+                            let scale = this.highlightedActor.transform.local.scale;
+                            scale.x = int;
+                            scale.y = int;
+                            scale.z = int;
+                            this.numberInput.updateText(scale.x.toString());
+                        }
+                    }
+                });
+            }
+        })
     }
 
     private toggleMenu(){

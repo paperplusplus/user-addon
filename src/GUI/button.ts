@@ -50,6 +50,8 @@ export class Button {
 
     private buttonBehavior: MRE.ButtonBehavior;
 
+    private isHolding: boolean = false;
+
     get _button(){
         return this._box;
     }
@@ -158,6 +160,24 @@ export class Button {
 
     public addBehavior(handler: MRE.ActionHandler<MRE.ButtonEventData>){
         this.buttonBehavior.onClick(handler);
+    }
+
+    public addHoldingBehavior(handler: MRE.ActionHandler<MRE.ButtonEventData>){
+        this.buttonBehavior.onButton('holding', (user, actionData) => {
+            if (!this.isHolding){
+                this.isHolding = true;
+                handler(user, actionData);
+            }
+        });
+    }
+
+    public addReleaseBehavior(handler: MRE.ActionHandler<MRE.ButtonEventData>){
+        this.buttonBehavior.onButton('released', (user, actionData) => {
+            if (this.isHolding){
+                this.isHolding = false;
+                handler(user, actionData);
+            }
+        });
     }
 
     public updateLabel(text: string, color?: MRE.Color3){

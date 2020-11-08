@@ -2,11 +2,18 @@ import fs from 'fs';
 import path from 'path';
 import superagent from 'superagent';
 import cheerio from 'cheerio';
+import * as MRE from '@microsoft/mixed-reality-extension-sdk';
+
 import { fetchJSON } from './utils';
 const { getAudioDurationInSeconds } = require('get-audio-duration');
 
 const email = process.env['EMAIL'];
 const password = process.env['PASSWORD'];
+
+export type levelData = {
+    id: number,
+    transform: MRE.ActorTransformLike
+}[];
 
 type ObjectDescriptor = {
     thumbnailUri: string;
