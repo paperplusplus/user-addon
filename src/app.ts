@@ -876,7 +876,7 @@ export class AltRPG {
     ////////////////////
     //// mirror
     private createMirror(user: MRE.User){
-        const MIRROR_RESOURCE_ID = "artifact:1493621759352505254";
+        const MIRROR_RESOURCE_ID = "artifact:1508892048445408130";
         const MIRROR_SCALE = {x: -0.5, y: -0.5, z: -0.5};
         const MIRROR_POSITION = {
             x: 0, y: 0, z: 5
@@ -906,7 +906,7 @@ export class AltRPG {
         this.mirror.attach(user, 'spine-middle');
         this.disableMirror();
 
-        const CAMERA_RESOURCE_ID = "artifact:1493621766818366377";
+        const CAMERA_RESOURCE_ID = "artifact:1508892068108305289";
         const CAMERA_SCALE = {x: 0.2, y: 0.2, z: 0.2};
         const CAMERA_POSITION = {
             x: 0, y: 0.09, z: 2
