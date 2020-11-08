@@ -677,6 +677,7 @@ export class AltRPG {
             actor.subscribe('transform');
             // bounding box
             let dim = this.dimensions.get(item.id).dimensions;
+            let center = this.dimensions.get(item.id).center;
             let box = MRE.Actor.CreatePrimitive(this.assets, {
                 definition: {
                     shape: MRE.PrimitiveShape.Box,
@@ -688,7 +689,7 @@ export class AltRPG {
                     parentId: actor.id,
                     transform: {
                         local: {
-                            position: {x: 0, y: 0, z: 0},
+                            position: {x: center.x, y:center.z, z: center.y},
                             scale: {x: 1.05, y: 1.05, z: 1.05}
                         }
                     },

@@ -30,5 +30,45 @@
         },
         "id": 4,
         "name": "cylinder"
+    },
+    {
+        "obj": {
+            "thumbnailUri": "thumbnails/bridge_ceiling.png",
+            "resourceId": "glb/bridge_ceiling.glb"
+        },
+        "id": 5,
+        "name": "bridge_ceiling"
+    },
+    {
+        "obj": {
+            "thumbnailUri": "thumbnails/bridge_chair_00.png",
+            "resourceId": "glb/bridge_chair_00.glb"
+        },
+        "id": 6,
+        "name": "bridge_chair_00"
+    },
+    {
+        "obj": {
+            "thumbnailUri": "thumbnails/bridge_chair_01.png",
+            "resourceId": "glb/bridge_chair_01.glb"
+        },
+        "id": 7,
+        "name": "bridge_chair_01"
+    },
+    {
+        "obj": {
+            "thumbnailUri": "thumbnails/bridge_wall_02.png",
+            "resourceId": "glb/bridge_wall_02.glb"
+        },
+        "id": 8,
+        "name": "bridge_wall_02"
+    },
+    {
+        "obj": {
+            "thumbnailUri": "thumbnails/model.png",
+            "resourceId": "glb/model.glb"
+        },
+        "id": 9,
+        "name": "model"
     }
 ]
