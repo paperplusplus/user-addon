@@ -51,6 +51,7 @@ export class Button {
     private buttonBehavior: MRE.ButtonBehavior;
 
     private isHolding: boolean = false;
+    private isExit: boolean = false;
 
     get _button(){
         return this._box;
@@ -173,10 +174,22 @@ export class Button {
 
     public addReleaseBehavior(handler: MRE.ActionHandler<MRE.ButtonEventData>){
         this.buttonBehavior.onButton('released', (user, actionData) => {
-            if (this.isHolding){
-                this.isHolding = false;
-                handler(user, actionData);
-            }
+            this.isHolding = false;
+            handler(user, actionData);
+        });
+    }
+
+    public addHoverExitBehavior(handler: MRE.ActionHandler<MRE.ButtonEventData>){
+        this.buttonBehavior.onHover('exit', (user, actionData) => {
+            this.isExit = true;
+            handler(user, actionData);
+        });
+    }
+
+    public addHoverEnterBehavior(handler: MRE.ActionHandler<MRE.ButtonEventData>){
+        this.buttonBehavior.onHover('enter', (user, actionData) => {
+            this.isExit = false;
+            handler(user, actionData);
         });
     }
 

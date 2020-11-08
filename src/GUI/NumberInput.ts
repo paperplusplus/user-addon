@@ -4,6 +4,8 @@ import { GridMenu, GridMenuOptions } from './gridMenu';
 
 const OWNER_NAME = process.env['OWNER_NAME'];
 
+const INTERVAL = 50;
+
 export class NumberInput extends GridMenu{
     constructor(_context: MRE.Context, options?: GridMenuOptions){
         options.shape = { row: 1, col: 3 };
@@ -30,7 +32,7 @@ export class NumberInput extends GridMenu{
         let button = this.buttons.get('btn_0_0');
         button.addHoldingBehavior((user, _)=>{
             if (checkUserName(user, OWNER_NAME)){
-                interval = setInterval(stepUp, 10);
+                interval = setInterval(stepUp, INTERVAL);
             }
         });
         button.addReleaseBehavior((user, _)=>{
@@ -38,6 +40,12 @@ export class NumberInput extends GridMenu{
                 clearInterval(interval);
             }
         });
+        button.addHoverExitBehavior((user, _)=>{
+            if (checkUserName(user, OWNER_NAME)){
+                clearInterval(interval);
+            }
+        });
+        button.addHoverEnterBehavior((_, __)=>{});
         button.addBehavior((user, _)=>{
             if (checkUserName(user, OWNER_NAME)){
                 stepUp();
@@ -50,7 +58,7 @@ export class NumberInput extends GridMenu{
         let button = this.buttons.get('btn_0_2');
         button.addHoldingBehavior((user, _)=>{
             if (checkUserName(user, OWNER_NAME)){
-                interval = setInterval(stepDown, 100);
+                interval = setInterval(stepDown, INTERVAL);
             }
         });
         button.addReleaseBehavior((user, _)=>{
@@ -58,6 +66,12 @@ export class NumberInput extends GridMenu{
                 clearInterval(interval);
             }
         });
+        button.addHoverExitBehavior((user, _)=>{
+            if (checkUserName(user, OWNER_NAME)){
+                clearInterval(interval);
+            }
+        });
+        button.addHoverEnterBehavior((_, __)=>{});
         button.addBehavior((user)=>{
             if (checkUserName(user, OWNER_NAME)){
                 stepDown();
